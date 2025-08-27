@@ -1,6 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from dotenv import load_dotenv
+from services.user import get_current_active_user
+from typing import Any
 
 app = FastAPI()
+
+load_dotenv()
 
 @app.get('/')
 def index() -> dict:
@@ -9,3 +14,7 @@ def index() -> dict:
 @app.get('/health')
 def health() -> dict:
     return {'status': "ok"}
+
+@app.get('/protegida')
+def ruta_protegida(current_user: dict[str, Any] = Depends(get_current_active_user)) -> dict[str, Any]:
+    return {"mensaje": f"Hola, {current_user.get('email')}"}

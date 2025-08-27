@@ -10,18 +10,18 @@ import pytest
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 SUPABASE_JWKS_URL = os.getenv("SUPABASE_JWKS_URL")
 
 def test_supabase_jwt_decoding() -> None:
     try:
-        jwks: dict[str, Any] = requests.get(SUPABASE_JWKS_URL).json()
+        key: dict[str, Any] | str = requests.get(SUPABASE_JWKS_URL).json() if os.getenv("APP_ENV") == "production" else os.getenv("JWT_SECRET")
 
         token: str = "eyJhbGciOiJFUzI1NiIsImtpZCI6ImMzYzRiNGE1LTdiYjYtNDU5My1iMDFkLTgzN2QzNWQyODcyZiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Bid3RpaXFreGh4bWl5dXZna3ZnLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIyMDMwZGZjNS1jZDAwLTRmZTEtYTMzMC0wOWZiZmRkZTg1ZDAiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU2MjQ3NjI0LCJpYXQiOjE3NTYyNDc1ODgsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzU2MjQ3NTg4fV0sInNlc3Npb25faWQiOiJjMjQ5NmU4ZS0yNjRiLTRjNzQtOTViNC1mY2NiYTFkY2Y1M2IiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.NZr5upva-DDY20opwAWfRFO0TqKh2KOAJqhZ58Y9QI_IE9LC22AsPUf3QRTDFC_cf-0OI0hz8m-4B7_XgYPiUw"
 
         payload: dict[str, Any] = jwt.decode(
             token=token,
-            key=jwks,
+            key=key,
             algorithms=["ES256"],
             audience="authenticated",
             options={"verify_exp": False}
