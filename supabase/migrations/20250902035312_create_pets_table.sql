@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS pets (
+    id_pet BIGSERIAL PRIMARY KEY,
+    photo_url VARCHAR(255) CHECK (TRIM(photo_url) <> ''),
+    id_owner UUID NOT NULL REFERENCES auth.users(id),
+    id_breed1 BIGINT NOT NULL REFERENCES breeds(id_breed),
+    id_breed2 BIGINT REFERENCES breeds(id_breed),
+    pet_name VARCHAR(250) NOT NULL CHECK (TRIM(pet_name) <> ''),
+    sex BOOLEAN,
+    age SMALLINT CHECK (age >= 0 AND age <= 50),
+    birth_date DATE,
+    pet_description TEXT,
+    in_adoption_process BOOLEAN NOT NULL DEFAULT FALSE,
+    vaccinated BOOLEAN,
+    dewormed BOOLEAN,
+    sterilized BOOLEAN,
+    has_disabilities BOOLEAN,
+    sociability SMALLINT,
+    fur_length SMALLINT CHECK (fur_length BETWEEN 0 AND 3),
+    shading_level SMALLINT CHECK (shading_level BETWEEN 1 AND 3),
+    energy_level SMALLINT CHECK (energy_level BETWEEN 1 AND 3),
+    care_level_cost SMALLINT CHECK (care_level_cost BETWEEN 1 AND 3),
+    care_difficulty SMALLINT CHECK (care_difficulty BETWEEN 1 AND 3)
+);
