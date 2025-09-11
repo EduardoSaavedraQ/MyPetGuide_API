@@ -1,5 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from supabase import create_client, Client
+from supabase_auth.errors import AuthApiError
 import os
 from jose import jwt, ExpiredSignatureError, JWTError
 from typing import Any
@@ -66,3 +68,22 @@ async def get_current_active_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token inválido: {str(e)}"
         )
+    
+def sign_in(email: str, password: str) -> dict[str, Any]:
+    supabase: Client = create_client(
+        supabase_url=os.getenv("SUPABASE_URL"),
+        supabase_key=os.getenv("SUPABASE_ANON_KEY")
+    )
+
+    try:
+        response = supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+    except AuthApiError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Error en autenticación: Credenciales inválidas"
+        )
+    
+    return response.session
