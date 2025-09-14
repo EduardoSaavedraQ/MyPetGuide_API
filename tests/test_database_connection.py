@@ -1,5 +1,5 @@
 from sqlmodel import text
-from utils.helpers import get_engine
+from utils.db import get_engine
 from dotenv import load_dotenv
 load_dotenv()
 

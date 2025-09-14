@@ -2,7 +2,7 @@ fastapi[standard]==0.116.1
 sqlmodel==0.0.24
 python-dotenv==1.1.1
 psycopg2==2.9.10
-pytest==8.4.1
+pytest-asyncio==1.2.0
 supabase==2.18.1
 requests==2.32.5
 python-jose[cryptography]==3.5.0

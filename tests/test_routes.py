@@ -1,13 +1,12 @@
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from main import app
-from supabase import Client, create_client
-from supabase_auth.types import AuthResponse
-import os
+from supabase import Client
+from supabase_auth.types import Session
+from services.auth import login
+from utils.supabase import get_supabase_client
 import pytest
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 TEST_EMAIL = "test@test.com"
 TEST_PASSWORD = "password"
 TOKEN_EXPIRADO = "eyJhbGciOiJFUzI1NiIsImtpZCI6ImMzYzRiNGE1LTdiYjYtNDU5My1iMDFkLTgzN2QzNWQyODcyZiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Bid3RpaXFreGh4bWl5dXZna3ZnLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIyMDMwZGZjNS1jZDAwLTRmZTEtYTMzMC0wOWZiZmRkZTg1ZDAiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU2MjQ4NTU2LCJpYXQiOjE3NTYyNDg1MjAsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzU2MjQ4NTIwfV0sInNlc3Npb25faWQiOiJhY2E1N2MyNy1iY2ZkLTQ2NTktYjI5OC00OTAxMWZjZGQ4Y2EiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.Gu8RZUJVzYij-_bW6pjDcUfHiWL0mADX5XraiCK7vF5IFfagMlO6n5yIKcx5jLdbI5ulFT_ZEuddnCXPo5JHbg"
@@ -16,16 +15,13 @@ TOKEN_CON_FIRMA_INVALIDA = "eyJhbGciOiJFUzI1NiIsImtpZCI6ImMzYzRiNGE1LTdiYjYtNDU5
 def test_ruta_protegida_de_prueba_usuario_autenticado_de_prueba() -> None:
     client = TestClient(app)
 
-    supabase: Client = create_client(supabase_url=SUPABASE_URL, supabase_key=SUPABASE_KEY)
+    supabase: Client = get_supabase_client()
 
     try:
-        supabase_response: AuthResponse = supabase.auth.sign_in_with_password({
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD
-        })
+        supabase_response: Session = login(TEST_EMAIL, TEST_PASSWORD)
 
         fastapi_response = client.get("/protegida", headers={
-            "Authorization": f"Bearer {supabase_response.session.access_token}"
+            "Authorization": f"Bearer {supabase_response.access_token}"
         })
 
         assert fastapi_response.status_code == 200
@@ -85,7 +81,7 @@ def test_ruta_protegida_de_prueba_con_token_con_firma_invalida() -> None:
 def test_login_exitoso() -> None:
     client = TestClient(app)
 
-    response = client.post("/signin", json={
+    response = client.post("/login", json={
         "email": TEST_EMAIL,
         "password": TEST_PASSWORD
     })
@@ -97,7 +93,7 @@ def test_login_exitoso() -> None:
 def test_login_fallido_contraseña_incorrecta() -> None:
     client = TestClient(app)
 
-    response = client.post("/signin", json={
+    response = client.post("/login", json={
         "email": TEST_EMAIL,
         "password": "badpassword"
     })

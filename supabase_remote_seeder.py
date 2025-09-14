@@ -1,4 +1,4 @@
-from utils.helpers import get_engine
+from utils.db import get_engine
 from sqlmodel import text
 from sqlalchemy.exc import TimeoutError, StatementError, SQLAlchemyError
 import toml
