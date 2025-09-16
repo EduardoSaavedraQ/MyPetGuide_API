@@ -5,9 +5,9 @@ from typing import Any
 from fastapi import HTTPException, status
 import os
 
-def get_supabase_client() -> Client:
+def get_supabase_client(admin: bool = False) -> Client:
     supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_ANON_KEY")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") if admin else os.getenv("SUPABASE_ANON_KEY")
     return create_client(supabase_url, supabase_key)
 
 @alru_cache(maxsize=1, ttl=3600)
