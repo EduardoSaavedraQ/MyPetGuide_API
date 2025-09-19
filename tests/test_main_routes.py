@@ -77,26 +77,3 @@ def test_ruta_protegida_de_prueba_con_token_con_firma_invalida() -> None:
 
     assert response.status_code == 401
     assert "Token inválido" in response.json().get("detail")
-
-def test_login_exitoso() -> None:
-    client = TestClient(app)
-
-    response = client.post("/login", json={
-        "email": TEST_EMAIL,
-        "password": TEST_PASSWORD
-    })
-
-    assert response.status_code == 200
-    assert "access_token" in response.json()
-    assert response.json().get("token_type") == "bearer"
-
-def test_login_fallido_contraseña_incorrecta() -> None:
-    client = TestClient(app)
-
-    response = client.post("/login", json={
-        "email": TEST_EMAIL,
-        "password": "badpassword"
-    })
-
-    assert response.status_code == 401
-    assert response.json().get("detail") == "Error en autenticación: Credenciales inválidas"

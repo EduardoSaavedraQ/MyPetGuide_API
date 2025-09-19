@@ -9,6 +9,10 @@ from uuid import uuid4
 client = TestClient(app)
 
 sign_up_url: str = "/auth/signup"
+login_url: str = "/auth/login"
+
+TEST_EMAIL = "test@test.com"
+TEST_PASSWORD = "password"
 
 def test_crear_cuenta() -> None:
     valid_email_generated: bool = False
@@ -169,3 +173,26 @@ def test_crear_cuenta_sin_el_campo_password_confirm() -> None:
     assert response.status_code == 422
     assert "detail" in json_data
     assert "type" in json_data["detail"][0] and json_data["detail"][0]["type"] == "missing"
+
+def test_login_exitoso() -> None:
+    client = TestClient(app)
+
+    response = client.post(login_url, json={
+        "email": TEST_EMAIL,
+        "password": TEST_PASSWORD
+    })
+
+    assert response.status_code == 200
+    assert "access_token" in response.json()
+    assert response.json().get("token_type") == "bearer"
+
+def test_login_fallido_contraseña_incorrecta() -> None:
+    client = TestClient(app)
+
+    response = client.post(login_url, json={
+        "email": TEST_EMAIL,
+        "password": "badpassword"
+    })
+
+    assert response.status_code == 401
+    assert response.json().get("detail") == "Error en autenticación: Credenciales inválidas"

@@ -1,10 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends
 from dotenv import load_dotenv
-from services.auth import login, get_current_active_user
-from utils.supabase import get_supabase_client
-from supabase import Client
-from supabase_auth.errors import AuthApiError
-from schemas.auth import Credentials
+from services.auth import get_current_active_user
 from typing import Any
 from routers import auth
 
@@ -17,10 +13,6 @@ load_dotenv()
 @app.get('/')
 def index() -> dict:
     return {"Hello": "MyPetGuide"}
-
-@app.post('/login')
-def signin(credentials: Credentials):
-    return login(email=credentials.email, password=credentials.password)
 
 @app.get('/health')
 def health() -> dict:
