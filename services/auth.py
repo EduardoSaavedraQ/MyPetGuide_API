@@ -65,3 +65,45 @@ async def get_current_active_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token inválido: {str(e)}"
         )
+
+def map_auth_exceptions(e: AuthApiError) -> None:
+    error_code = getattr(e, "code", None)
+    error_message = str(e)
+
+    match(error_code):
+        case "user_already_exists":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No se pudo complettar el registro con los datos proporcionados."
+            )
+        case "email_exists":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="El correo ingresado está en espera de ser confirmado."
+            )
+        case "request_timeout":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="El servicio no está disponible por el momento. Intenta más tarde."
+            )
+        case "bad_json":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Los datos enviados no tienen el formato esperado."
+            )
+        case "over_email_send_rate_limit":
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="El correo ingresado está en espera de ser confirmado."
+            )
+        case "email_address_invalid":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El correo ingresado no tiene un formato válido. Verifica que incluya '@' y un dominio correcto."
+            )
+        case _:
+            print(f"[AuthError] {error_code=} {error_message=}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error inesperado durante el registro. Intenta más tarde."
+            )
