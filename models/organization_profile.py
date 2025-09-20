@@ -14,4 +14,7 @@ class OrganizationProfile(SQLModel, table=True):
     admin_slast_name: str | None = None
 
     def get_admin_full_name(self) -> str:
-        return f"{self.admin_first_name} {self.admin_last_name} {self.admin_slast_name}"
+        fullname: str = f"{self.admin_first_name} {self.admin_last_name}"
+        if self.admin_slast_name:
+            fullname += f" {self.admin_slast_name}"
+        return fullname

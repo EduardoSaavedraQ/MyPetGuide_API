@@ -8,6 +8,7 @@ from utils.supabase import get_supabase_client
 from exceptions.image_exceptions import ImageSizeLimitExceeded, InvalidImageFormat
 import json
 from typing import Any
+from PIL import UnidentifiedImageError
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -29,14 +30,25 @@ async def create_organization(
 
         return create_organization_db(supabase=supabase, organization_profile=organization_profile, user_id=current_user.get("sub"), image=image_bytes)
     
-    except (json.JSONDecodeError, ValueError) as e:
+    except (json.JSONDecodeError) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Formato de JSON de organización no válido: {e}"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Los datos están incompletos o no cumplen el formato esperado: {e}"
         )
 
     except (InvalidImageFormat, ImageSizeLimitExceeded) as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(e)
+        )
+    
+    except UnidentifiedImageError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="El archivo enviado no se reconoce como imagen."
         )
