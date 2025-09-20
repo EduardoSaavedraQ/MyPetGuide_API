@@ -216,7 +216,7 @@ def test_subir_imagen_de_perfil_de_usuario_valida_pero_sin_permisos_de_administr
 
         try:
 
-            supabase: Client = get_supabase_client()
+            supabase: Client = get_supabase_client(admin=False)
 
             response = upload_image_to_supabase(
                 id=username,
