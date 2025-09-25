@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends
-from schemas.organizations import OrganizationCreate, OrganizationRead
+from schemas.organizations import OrganizationCreate, OrganizationCreated
 from models.organization_profile import OrganizationProfile
 from services.organization import create_organization_db
 from services.auth import get_current_active_user
@@ -9,16 +9,16 @@ from exceptions.image_exceptions import ImageSizeLimitExceeded, InvalidImageForm
 import json
 from typing import Any
 from PIL import UnidentifiedImageError
+from services import auth
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
-@router.post("/register", response_model=OrganizationRead)
+@router.post("/register", response_model=OrganizationCreated)
 async def create_organization(
     organization_data: str = Form(...),
     image: UploadFile | None = File(None),
-    current_user: dict[str, Any] = Depends(get_current_active_user),
     supabase: Client = Depends(get_supabase_client)
-) -> OrganizationProfile:
+) -> OrganizationCreated:
     try:
         image_bytes: bytes | None = None
         
@@ -28,7 +28,15 @@ async def create_organization(
         profile_data_dict: dict = json.loads(organization_data)
         organization_profile: OrganizationCreate = OrganizationCreate(**profile_data_dict)
 
-        return create_organization_db(supabase=supabase, organization_profile=organization_profile, user_id=current_user.get("sub"), image=image_bytes)
+        response = auth.signup(credentials=organization_profile.model_dump(include={"email", "password"}), supabase=supabase)
+
+        organization_profile: OrganizationProfile = create_organization_db(supabase=supabase, organization_profile=organization_profile, user_id=response.user.id, image=image_bytes)
+
+        organization_created: OrganizationCreated = OrganizationCreated(**organization_profile.model_dump())
+
+        organization_created.jwt = response.session.token
+
+        return organization_created
     
     except (json.JSONDecodeError) as e:
         raise HTTPException(
