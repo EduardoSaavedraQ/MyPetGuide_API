@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS public.pets
+ADD pet_size SMALLINT CHECK (pet_size BETWEEN 1 AND 4);
