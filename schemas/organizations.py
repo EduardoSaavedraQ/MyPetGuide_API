@@ -29,17 +29,23 @@ class OrganizationRead(SQLModel):
     organization_name: str
     admin_first_name: str
     admin_last_name: str 
-    admin_slast_name: str | None
-    biography: str | None
-    photo_url: str | None
+    admin_slast_name: str | None = None
+    biography: str | None = None
+    photo_url: str | None = None
 
 class OrganizationCreated(SQLModel):
-    jwt: str | None
+    jwt: str | None = None
     id_organization: int
     id_user: UUID
     organization_name: str
     admin_first_name: str
     admin_last_name: str 
-    admin_slast_name: str | None
-    biography: str | None
-    photo_url: str | None
+    admin_slast_name: str | None = None
+    biography: str | None = None
+    photo_url: str | None = None
+
+    def get_admin_full_name(self) -> str:
+        fullname: str = f"{self.admin_first_name} {self.admin_last_name}"
+        if self.admin_slast_name:
+            fullname += f" {self.admin_slast_name}"
+        return fullname
