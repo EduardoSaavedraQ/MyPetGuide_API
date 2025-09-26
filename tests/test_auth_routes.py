@@ -11,7 +11,8 @@ client = TestClient(app)
 sign_up_url: str = "/auth/signup"
 login_url: str = "/auth/login"
 
-TEST_EMAIL = "test@test.com"
+USER_TEST_EMAIL = "test@test.com"
+ORGANIZATION_TEST_EMAIL = "organizationtest@gmail.com"
 TEST_PASSWORD = "password"
 
 def test_crear_cuenta() -> None:
@@ -178,7 +179,7 @@ def test_login_exitoso() -> None:
     client = TestClient(app)
 
     response = client.post(login_url, json={
-        "email": TEST_EMAIL,
+        "email": USER_TEST_EMAIL,
         "password": TEST_PASSWORD
     })
 
@@ -190,9 +191,66 @@ def test_login_fallido_contraseña_incorrecta() -> None:
     client = TestClient(app)
 
     response = client.post(login_url, json={
-        "email": TEST_EMAIL,
+        "email": USER_TEST_EMAIL,
         "password": "badpassword"
     })
 
     assert response.status_code == 401
     assert response.json().get("detail") == "Error en autenticación: Credenciales inválidas"
+
+def test_obtener_rol_de_cuenta_de_organizacion() -> None:
+    client = TestClient(app)
+
+    login_response = client.post(login_url, json={
+        "email": ORGANIZATION_TEST_EMAIL,
+        "password": TEST_PASSWORD
+    })
+
+    access_token: str = login_response.json()["access_token"]
+
+    role_response = client.get(url="auth/role", headers={
+        "Authorization": f"Bearer {access_token}"
+    })
+
+    json_data: dict = role_response.json()
+
+    assert role_response.status_code == 200
+    assert "role" in json_data and json_data["role"] == "Organization"
+
+def test_obtener_rol_de_cuenta_de_usuario_normal() -> None:
+    client = TestClient(app)
+
+    login_response = client.post(login_url, json={
+        "email": USER_TEST_EMAIL,
+        "password": TEST_PASSWORD
+    })
+
+    access_token: str = login_response.json()["access_token"]
+
+    role_response = client.get(url="auth/role", headers={
+        "Authorization": f"Bearer {access_token}"
+    })
+
+    json_data: dict = role_response.json()
+
+    assert role_response.status_code == 200
+    assert "role" in json_data and json_data["role"] == "User"
+
+def test_obtener_rol_de_cuenta_sin_rol() -> None:
+    client = TestClient(app)
+
+    login_response = client.post(login_url, json={
+        "email": "test@gmail.com",
+        "password": TEST_PASSWORD
+    })
+
+    access_token: str = login_response.json()["access_token"]
+
+    role_response = client.get(url="auth/role", headers={
+        "Authorization": f"Bearer {access_token}"
+    })
+
+    json_data: dict = role_response.json()
+
+    assert role_response.status_code == 404
+    assert "detail" in json_data and json_data["detail"] == "No se encontró rol para el usuario."

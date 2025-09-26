@@ -90,7 +90,7 @@ def login(email: str, password: str, supabase: Client) -> Session:
 async def get_current_active_user(
         token: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict[str, Any]:
-    
+
     try:
         jwks = await get_jwks()
 
@@ -121,9 +121,32 @@ async def get_current_active_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token expirado"
         )
-    
+
     except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token inválido: {str(e)}"
         )
+    
+def get_user_role(user_uuid: str, supabase: Client) -> str:
+    response = (
+        supabase.table("users_profiles")
+        .select("id_profile")
+        .eq("id_user", user_uuid)
+        .execute()
+    )
+
+    if response.data:
+        return "User"
+
+    response = (
+        supabase.table("organizations_profiles")
+        .select("id_organization")
+        .eq("id_user", user_uuid)
+        .execute()
+    )
+
+    if response.data:
+        return "Organization"
+    
+    return ""
