@@ -9,7 +9,7 @@ class UserCreate(SQLModel):
     password_confirm: str
     first_name: str = Field(..., min_length=1, max_length=50, description="Nombre(s) del usuario")
     last_name: str = Field(..., min_length=1, max_length=50, description="Apellido paterno del usuario")
-    slast_name: str | None = Field(default=None, min_length=1, max_length=50, description="Apellido materno del usuario (opcional)")
+    slast_name: str | None = Field(default=None, max_length=50, description="Apellido materno del usuario (opcional)")
 
     @model_validator(mode="after")
     def check_passwords_match(self) -> "UserCreate":

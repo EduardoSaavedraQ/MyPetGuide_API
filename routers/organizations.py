@@ -12,7 +12,7 @@ router = APIRouter(prefix="/organizations", tags=["organizations"])
 
 @router.post("/register", response_model=OrganizationCreated)
 async def create_organization(
-    organization_data: str = Form(...),
+    data: str = Form(...),
     image: UploadFile | None = File(None),
     supabase_anon_client: Client = Depends(get_supabase_client),
     supabase_admin_client: Client = Depends(get_supabase_admin_client)
@@ -23,7 +23,7 @@ async def create_organization(
         if image is not None:
             image_bytes = await image.read()
 
-        profile_data_dict: dict = json.loads(organization_data)
+        profile_data_dict: dict = json.loads(data)
         organization_profile: OrganizationCreate = OrganizationCreate(**profile_data_dict)
 
         sign_up_reponse = auth.signup(credentials=organization_profile.model_dump(include={"email", "password"}), supabase=supabase_anon_client)

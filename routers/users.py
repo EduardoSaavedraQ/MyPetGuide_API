@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
-from supabase import Client
+from supabase import Client, AuthApiError
 from utils.supabase import get_supabase_client, get_supabase_admin_client
 from schemas.users import UserCreate, UserRead, UserCreated
 from exceptions.image_exceptions import ImageSizeLimitExceeded, InvalidImageFormat
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.post("/register", response_model=UserCreated)
 async def create_user(
-    user_data: str = Form(...),
+    data: str = Form(...),
     image: UploadFile | None = File(None),
     supabase_anon_client: Client = Depends(get_supabase_client),
     supabase_admin_client: Client = Depends(get_supabase_admin_client)
@@ -23,7 +23,7 @@ async def create_user(
         if image is not None:
             image_bytes = await image.read()
 
-        profile_data_dict: dict = json.loads(user_data)
+        profile_data_dict: dict = json.loads(data)
         user_profile: UserCreate = UserCreate(**profile_data_dict)
 
         sign_up_reponse = auth.signup(credentials=user_profile.model_dump(include={"email", "password"}), supabase=supabase_anon_client)
