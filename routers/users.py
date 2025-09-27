@@ -1,40 +1,40 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends
-from schemas.organizations import OrganizationCreate,OrganizationRead, OrganizationCreated
-from services.organization import create_organization_db
+from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from supabase import Client
 from utils.supabase import get_supabase_client, get_supabase_admin_client
+from schemas.users import UserCreate, UserRead, UserCreated
 from exceptions.image_exceptions import ImageSizeLimitExceeded, InvalidImageFormat
-import json
 from PIL import UnidentifiedImageError
 from services import auth
+from services.user import create_user_db
+import json
 
-router = APIRouter(prefix="/organizations", tags=["organizations"])
+router = APIRouter(prefix="/users", tags=["users"])
 
-@router.post("/register", response_model=OrganizationCreated)
-async def create_organization(
-    organization_data: str = Form(...),
+@router.post("/register", response_model=UserCreated)
+async def create_user(
+    user_data: str = Form(...),
     image: UploadFile | None = File(None),
     supabase_anon_client: Client = Depends(get_supabase_client),
     supabase_admin_client: Client = Depends(get_supabase_admin_client)
-) -> OrganizationCreated:
+) -> UserCreated:
     try:
         image_bytes: bytes | None = None
-        
+
         if image is not None:
             image_bytes = await image.read()
 
-        profile_data_dict: dict = json.loads(organization_data)
-        organization_profile: OrganizationCreate = OrganizationCreate(**profile_data_dict)
+        profile_data_dict: dict = json.loads(user_data)
+        user_profile: UserCreate = UserCreate(**profile_data_dict)
 
-        sign_up_reponse = auth.signup(credentials=organization_profile.model_dump(include={"email", "password"}), supabase=supabase_anon_client)
+        sign_up_reponse = auth.signup(credentials=user_profile.model_dump(include={"email", "password"}), supabase=supabase_anon_client)
 
-        organization_profile: OrganizationRead = create_organization_db(supabase=supabase_admin_client, organization_profile=organization_profile, id_user=sign_up_reponse.user.id, image=image_bytes)
+        user_profile: UserRead = create_user_db(supabase=supabase_admin_client, user_profile=user_profile, id_user=sign_up_reponse.user.id, image=image_bytes)
 
-        organization_created: OrganizationCreated = OrganizationCreated(**organization_profile.model_dump())
+        user_created: UserCreated = UserCreated(**user_profile.model_dump())
 
-        organization_created.jwt = sign_up_reponse.session.access_token
-        
-        return organization_created
+        user_created.jwt = sign_up_reponse.session.access_token
+
+        return user_created
     
     except (json.JSONDecodeError) as e:
         raise HTTPException(

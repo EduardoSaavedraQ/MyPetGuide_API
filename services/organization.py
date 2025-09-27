@@ -2,7 +2,6 @@ from sqlmodel import UUID
 from schemas.organizations import OrganizationCreate, OrganizationRead
 from services.image_service import upload_image_to_supabase
 from supabase import Client
-from schemas.organizations import OrganizationCreate
 
 def create_organization_db(supabase: Client, organization_profile: OrganizationCreate, id_user: UUID, image: bytes | None = None) -> OrganizationRead:
     data_to_insert: dict = organization_profile.model_dump(include={
