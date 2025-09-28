@@ -351,7 +351,7 @@ def test_registro_de_usuario() -> None:
         supabase: Client = get_supabase_admin_client()
 
         files = {
-            'user_data': (None, json.dumps(user_data), 'application/json'),
+            'data': (None, json.dumps(user_data), 'application/json'),
             'image': ('profile_photo.jpg', imagen_de_perfil, 'image/jpeg')
         }
 
@@ -363,7 +363,10 @@ def test_registro_de_usuario() -> None:
         user_created: UserCreated = UserCreated(**response.json())
         id_created_user = str(user_created.id_user)
 
-        assert response.status_code == 200
+        
+        if response.status_code != 200:
+            pytest.fail(f"Test failed with status code {response.status_code} and response: {response.json()}")
+
         assert user_created.id_user is not None
         assert user_created.first_name == user_data["first_name"]
         assert user_created.last_name == user_data["last_name"]
@@ -388,5 +391,50 @@ def test_registro_de_usuario() -> None:
             supabase = get_supabase_admin_client()
             supabase.auth.admin.delete_user(id=id_created_user)
             supabase.storage.empty_bucket("avatars")
+        except Exception:
+            pass
+
+def test_registro_de_usuario_sin_imagen() -> None:
+    id_created_user: str | None = None
+    try:        
+        supabase: Client = get_supabase_admin_client()
+
+        files = {
+            'data': (None, json.dumps(user_data), 'application/json')
+        }
+
+        response: httpx.Response = client.post(
+            url=USER_REGISTER_ROUTE,
+            files=files
+        )
+
+        user_created: UserCreated = UserCreated(**response.json())
+        id_created_user = str(user_created.id_user)
+
+
+        if response.status_code != 200:
+            pytest.fail(f"Test failed with status code {response.status_code} and response: {response.text}")
+
+        assert user_created.id_user is not None
+        assert user_created.first_name == user_data["first_name"]
+        assert user_created.last_name == user_data["last_name"]
+        assert user_created.slast_name == user_data["slast_name"]
+        assert user_created.photo_url is None
+        assert user_created.get_full_name() == f"{user_data["first_name"]} {user_data["last_name"]} {user_data['slast_name']}"
+        assert user_created.jwt is not None
+
+        supabase_response = (
+            supabase.storage
+            .from_("avatars")
+            .list(path="public/users")
+        )
+        
+    except Exception as e:
+        pytest.fail(f"Test failed due to an unexpected error: {e}")
+
+    finally:
+        try:
+            supabase = get_supabase_admin_client()
+            supabase.auth.admin.delete_user(id=id_created_user)
         except Exception:
             pass
