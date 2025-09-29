@@ -1,12 +1,13 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends
 from schemas.organizations import OrganizationCreate,OrganizationRead, OrganizationCreated
-from services.organization import create_organization_db
+from services.organization import create_organization_db, get_organization_all_data
 from supabase import Client
 from utils.supabase import get_supabase_client, get_supabase_admin_client
 from exceptions.image_exceptions import ImageSizeLimitExceeded, InvalidImageFormat
 import json
 from PIL import UnidentifiedImageError
 from services import auth
+from typing import Any
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -58,3 +59,14 @@ async def create_organization(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="El archivo enviado no se reconoce como imagen."
         )
+
+@router.get("/all-data")
+async def get_all_user_data(
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(auth.get_current_active_user)
+) -> dict[str, Any]:
+    
+    organization_data = get_organization_all_data(supabase=supabase, id_user=current_user['sub'])
+    organization_data["email"] = current_user["email"]
+
+    return organization_data
