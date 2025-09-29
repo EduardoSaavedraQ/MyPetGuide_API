@@ -5,7 +5,7 @@ from schemas.users import UserCreate, UserRead, UserCreated, UserProfileCreate
 from exceptions.image_exceptions import ImageSizeLimitExceeded, InvalidImageFormat
 from PIL import UnidentifiedImageError
 from services import auth
-from services.user import create_user_db, update_user_profile
+from services.user import create_user_db, update_user_profile, get_user_all_data
 from typing import Any
 import json
 
@@ -108,3 +108,14 @@ async def create_user_profile(profile_data: UserProfileCreate, supabase: Client 
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Los datos están incompletos o no cumplen el formato esperado: {e}"
         )
+
+@router.get("/all-data")
+async def get_all_user_data(
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(auth.get_current_active_user)
+) -> dict[str, Any]:
+    
+    user_data = get_user_all_data(supabase=supabase, id_user=current_user['sub'])
+    user_data["email"] = current_user["email"]
+
+    return user_data

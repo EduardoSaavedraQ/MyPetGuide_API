@@ -5,6 +5,7 @@ from supabase import Client
 from services.ml.kmeans_service import predict_cluster
 from utils.user import USER_CLUSTER_FEATURES, USER_FEAUTURES_TO_SCALE, USER_BOOL_FEATURES, can_clusterize, transform_bool_cluster_features_to_int
 from services.ml.scaler_service import scale_data
+from typing import Any
 
 def create_user_db(supabase: Client, user_profile: UserCreate, id_user: UUID, image: bytes | None = None) -> UserRead:
     data_to_insert: dict = user_profile.model_dump(include={
@@ -75,3 +76,28 @@ def update_user_profile(
 
     updated_user: UserRead = UserRead(**response.data[0])
     return updated_user
+
+def get_user_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
+
+    user_query_response: dict = (
+        supabase.table("users_profiles")
+        .select("*")
+        .eq("id_user", id_user)
+        .execute()
+    )
+
+    user_data: dict = user_query_response.data[0] if user_query_response.data else dict()
+
+    pet_query_response = (
+        supabase.table("pets")
+        .select("*")
+        .eq("id_owner", id_user)
+        .execute()
+    )
+
+    user_pets: dict = pet_query_response.data
+
+    return {
+        "user": user_data,
+        "pets": user_pets
+    }
