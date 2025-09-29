@@ -1,7 +1,7 @@
 import joblib
 import os
 
-SCALERS_PATH = os.path.join(os.path.dirname(__file__), "../../ml_models/Scalers/")
+SCALERS_PATH = os.path.join(os.path.dirname(__file__), "../../artifacts/Scalers/")
 
 def load_scaler(scaler_type: str):
     if scaler_type not in {"owner", "pet"}:
@@ -17,7 +17,7 @@ def scale_data(scaler_type: str, data: list):
     elif isinstance(data, list) and all(isinstance(row, list) and all(isinstance(x, (int, float)) for x in row) for row in data):
         data_to_scale = data
     else:
-        raise ValueError("Data must be a list of numbers or a list of lists of numbers.")
+        raise ValueError("Scaler needs data to be a list of numbers or a list of lists of numbers.")
 
     scaler = load_scaler(scaler_type)
     return scaler.transform(data_to_scale)

@@ -3,8 +3,8 @@ from schemas.users import UserCreate, UserRead
 from services.image_service import upload_image_to_supabase, replace_image_profile
 from supabase import Client
 from services.ml.kmeans_service import predict_cluster
-from utils.user import USER_CLUSTER_FEATURES, can_clusterize, transform_bool_cluster_features_to_int
-from services.ml.kmeans_service import predict_cluster
+from utils.user import USER_CLUSTER_FEATURES, USER_FEAUTURES_TO_SCALE, USER_BOOL_FEATURES, can_clusterize, transform_bool_cluster_features_to_int
+from services.ml.scaler_service import scale_data
 
 def create_user_db(supabase: Client, user_profile: UserCreate, id_user: UUID, image: bytes | None = None) -> UserRead:
     data_to_insert: dict = user_profile.model_dump(include={
@@ -58,7 +58,10 @@ def update_user_profile(
 
     if can_clusterize(data_to_update):
         data_to_update = transform_bool_cluster_features_to_int(data_to_update)
-        features = [data_to_update[field] for field in USER_CLUSTER_FEATURES]
+        bool_feautures = [data_to_update[field] for field in USER_BOOL_FEATURES]
+        features_to_scale = [data_to_update[field] for field in USER_FEAUTURES_TO_SCALE]
+        scaled_data = scale_data("owner", features_to_scale)
+        features = scaled_data.tolist() + bool_feautures
         cluster = predict_cluster("owner", features)
         data_to_update["owner_label"] = cluster[0]  # O int(cluster[0])
 
