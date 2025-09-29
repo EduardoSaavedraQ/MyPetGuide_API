@@ -21,7 +21,7 @@ def predict_cluster(kmeans_type: str, data: list) -> list:
         raise ValueError("Kmeans needs data to be a list of numbers or a list of lists of numbers.")
 
     model = load_kmeans_model(kmeans_type)
-    scaler_type = "pet" if kmeans_type in ["cat", "dog"] else "owner"
-    #scaled_data = scale_data(scaler_type, data_to_predict)
+    
     clusters = model.predict(data_to_predict)
+
     return [int(c) for c in clusters]
