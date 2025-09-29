@@ -61,7 +61,7 @@ def update_user_profile(
         bool_feautures = [data_to_update[field] for field in USER_BOOL_FEATURES]
         features_to_scale = [data_to_update[field] for field in USER_FEAUTURES_TO_SCALE]
         scaled_data = scale_data("owner", features_to_scale)
-        features = scaled_data.tolist() + bool_feautures
+        features = scaled_data[0] + bool_feautures
         cluster = predict_cluster("owner", features)
         data_to_update["owner_label"] = cluster[0]  # O int(cluster[0])
 

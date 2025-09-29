@@ -20,4 +20,4 @@ def scale_data(scaler_type: str, data: list):
         raise ValueError("Scaler needs data to be a list of numbers or a list of lists of numbers.")
 
     scaler = load_scaler(scaler_type)
-    return scaler.transform(data_to_scale)
+    return scaler.transform(data_to_scale).tolist()
