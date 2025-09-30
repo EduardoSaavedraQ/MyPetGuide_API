@@ -22,14 +22,16 @@ def create_pet(
                 id=id_user, image=image, bucket="avatars", path="public/pets", supabase=supabase
             )
         data["photo_url"] = upload_response.path
+        
+    data["id_owner"] = id_user
 
-    if can_clusterize(data) and data.get("preferred_species") is not None:
+    if can_clusterize(data) and data.get("species") is not None:
         data = transform_bool_cluster_features_to_int(data)
         bool_features = [data[field] for field in PET_BOOL_FEATURES]
         features_to_scale = [data[field] for field in PET_FEATURES_TO_SCALE]
         scaled_data = scale_data("pet", features_to_scale)
         features = scaled_data[0] + bool_features
-        cluster = predict_cluster("cat" if not data["preferred_species"] else "dog", features)
+        cluster = predict_cluster("cat" if not data["species"] else "dog", features)
         data["pet_label"] = cluster[0]
 
     response = (
