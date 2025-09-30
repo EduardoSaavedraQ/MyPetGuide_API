@@ -88,6 +88,8 @@ def get_user_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
 
     user_data: dict = user_query_response.data[0] if user_query_response.data else dict()
 
+    user_data["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=user_data.get("photo_url", ""), expires_in=3600) if user_data.get("photo_url") else None
+
     pet_query_response = (
         supabase.table("pets")
         .select("*")
