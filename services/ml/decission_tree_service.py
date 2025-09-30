@@ -7,7 +7,7 @@ def load_decision_tree_model(model_type: str):
     if model_type not in ["user_to_dogs", "user_to_cats", "dog_to_user", "cat_to_user"]:
         raise ValueError("Invalid decision tree type. Choose from 'user_to_dogs', 'owner_to_cats', 'dog_to_users', or 'cat_to_users'.")
 
-    return joblib.load(os.path.join(DECISION_TREE_MODELS_PATH, f"{model_type}_decision_tree.pkl"))
+    return joblib.load(os.path.join(DECISION_TREE_MODELS_PATH, f"{model_type}_decission_tree.pkl"))
 
 def predict_compatible_cluster(model_type: str, data: list) -> list:
     # Si data es una lista plana, la convertimos a lista de listas

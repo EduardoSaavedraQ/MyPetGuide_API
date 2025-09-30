@@ -4,8 +4,8 @@ from services.image_service import replace_image_profile, upload_image_to_supaba
 from services.ml.kmeans_service import predict_cluster
 from services.ml.scaler_service import scale_data
 from services.ml.decission_tree_service import predict_compatible_cluster
-from utils.pet import PET_FEATURES_TO_SCALE, PET_BOOL_FEATURES, can_clusterize, transform_bool_cluster_features_to_int
-from utils.user import can_clusterize, USER_CLUSTER_FEATURES, USER_BOOL_FEATURES, USER_FEAUTURES_TO_SCALE, transform_bool_cluster_features_to_int
+from utils.pet import PET_FEATURES_TO_SCALE, PET_BOOL_FEATURES, can_clusterize as can_clusterize_pet, transform_bool_cluster_features_to_int as transform_bool_pet
+from utils.user import can_clusterize as can_clusterize_user, USER_CLUSTER_FEATURES, USER_BOOL_FEATURES, USER_FEAUTURES_TO_SCALE, transform_bool_cluster_features_to_int as transform_bool_user
 from fastapi import HTTPException, status
 
 def create_pet(
@@ -28,8 +28,8 @@ def create_pet(
         
     data["id_owner"] = id_user
 
-    if can_clusterize(data) and data.get("species") is not None:
-        data = transform_bool_cluster_features_to_int(data)
+    if can_clusterize_pet(data) and data.get("species") is not None:
+        data = transform_bool_pet(data)
         bool_features = [data[field] for field in PET_BOOL_FEATURES]
         features_to_scale = [data[field] for field in PET_FEATURES_TO_SCALE]
         scaled_data = scale_data("pet", features_to_scale)
@@ -90,13 +90,13 @@ def get_recommended_pets(supabase: Client, id_user: str, page: int | None = None
 
     user_data: dict = user_profile_response.data[0]
 
-    if not can_clusterize(user_data):
+    if not can_clusterize_user(user_data):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Tu perfil de usuario no tiene suficientes datos para recomendar mascotas."
         )
     
-    user_data = transform_bool_cluster_features_to_int(user_data)
+    user_data = transform_bool_user(user_data)
     bool_features = [user_data[field] for field in USER_BOOL_FEATURES]
     features_to_scale = [user_data[field] for field in USER_FEAUTURES_TO_SCALE]
     scaled_data = scale_data("owner", features_to_scale)
@@ -109,10 +109,11 @@ def get_recommended_pets(supabase: Client, id_user: str, page: int | None = None
 
     query = (
         supabase.table("pets")
-        .select("*")
+        .select("*, species:id_breed1(species)")
         .eq("in_adoption_process", True)
         .neq("id_owner", id_user)
         .eq("pet_label", pet_label)
+        #.eq("species.species", user_data["preferred_species"])
     )
 
     if page is not None:
@@ -129,8 +130,10 @@ def get_recommended_pets(supabase: Client, id_user: str, page: int | None = None
 
     response = query.execute()
 
+    results = filter(lambda pet: pet["species"]["species"] == user_data["preferred_species"], response.data)
+
     for pet in response.data:
         if pet["photo_url"] is not None:
             pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=60)
 
-    return response.data
+    return results

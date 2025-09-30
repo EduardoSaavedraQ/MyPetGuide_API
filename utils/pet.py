@@ -6,7 +6,7 @@ PET_CLUSTER_FEATURES = [
     "shedding_level",
     "energy_level",
     "care_level_cost",
-    "care_dificulty",
+    "care_difficulty",
     "sex",
     "vaccinated",
     "dewormed",
@@ -22,7 +22,7 @@ PET_FEATURES_TO_SCALE = [
     "shedding_level",
     "energy_level",
     "care_level_cost",
-    "care_dificulty",
+    "care_difficulty",
 ]
 
 PET_BOOL_FEATURES = [
