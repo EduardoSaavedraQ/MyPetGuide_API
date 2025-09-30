@@ -73,3 +73,29 @@ async def get_recommended_pets(
     current_user: dict[str, Any] = Depends(auth.get_current_active_user)
 ) -> list[dict[str, Any]]:
     return pet.get_recommended_pets(supabase=supabase, id_user=current_user["sub"], page=page)
+
+@router.get("s/breeds/{species}")
+def get_breeds_by_species(
+    species: str,
+    supabase: Client = Depends(get_supabase_admin_client)
+) -> list:
+    
+    match(species.lower()):
+        case "dog":
+            species = True
+        case "cat":
+            species = False
+        case _:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La especie debe ser 'dog' o 'cat'."
+            )
+
+    breeds = (
+        supabase.table("breeds")
+        .select("id_breed, breed_name")
+        .eq("species", species)
+        .execute()
+    )
+
+    return breeds.data

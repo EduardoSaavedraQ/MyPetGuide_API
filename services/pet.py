@@ -37,6 +37,8 @@ def create_pet(
         cluster = predict_cluster("cat" if not data["species"] else "dog", features)
         data["pet_label"] = cluster[0]
 
+    data.pop("species")
+
     response = (
         supabase.table("pets")
         .insert(data)
