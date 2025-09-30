@@ -65,3 +65,11 @@ async def get_pets_for_adoption(
     pets = pet.get_all_pets_in_adoption(supabase=supabase, page=page, id_user=current_user["sub"])
 
     return pets
+
+@router.get("s/recommended")
+async def get_recommended_pets(
+    page: int | None = None,
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(auth.get_current_active_user)
+) -> list[dict[str, Any]]:
+    return pet.get_recommended_pets(supabase=supabase, id_user=current_user["sub"], page=page)
