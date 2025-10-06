@@ -10,3 +10,4 @@ async-lru==2.0.5
 toml==0.10.2
 Pillow==11.3.0
 scikit-learn==1.7.2
+freezegun==1.5.5
