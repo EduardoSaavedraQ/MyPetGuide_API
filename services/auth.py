@@ -11,6 +11,15 @@ from utils.supabase import get_jwks
 security = HTTPBearer()
 
 def map_auth_exceptions(e: AuthApiError) -> None:
+    """
+    Mapea las excepciones del objeto `auth` del cliente de Supabase y devuelve la respuesta HTTP apropiada.
+
+    Args:
+        e (supabase_auth.errors.AuthApiError): Excepción lanzada por el objeto auth del cliente de Supabase.
+
+    Raises:
+        HTTPExcepction: El código de estado dependerá del `error_code` devuelto en la excepción.
+    """
     error_code = getattr(e, "code", None)
     error_message = str(e)
 
@@ -18,7 +27,7 @@ def map_auth_exceptions(e: AuthApiError) -> None:
         case "user_already_exists":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="No se pudo complettar el registro con los datos proporcionados."
+                detail="No se pudo completar el registro con los datos proporcionados."
             )
         case "email_exists":
             raise HTTPException(
@@ -53,25 +62,33 @@ def map_auth_exceptions(e: AuthApiError) -> None:
             )
 
 def signup(credentials: dict, supabase: Client) -> AuthResponse:
-    try:
-        response: AuthResponse = supabase.auth.sign_up(credentials)
+    """
+    Crea una nueva cuenta a partir de las credenciales proporcionadas.
 
-        if getattr(response, "error", None):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=response.error.message
-            )
-        
-        if not response.user.identities:
-            raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="No se pudo completar el registro con los datos proporcionados."
+    Args:
+        credentials (dict): Diccionario de credenciales. Debe contener las claves `email` o `phone`, y `password`.
+        supabase (supabase.Client): Cliente de Supabase.
+
+    Raises:
+        HTTPException: Si se detecta que una cuenta asociada con el correo o el teléfono proporcionados ya existe, se devuelve un error 409 al cliente.
+        supabase_auth.error.AuthApiError: Si ocurre un error en el registro de la cuenta mediante el cliente de Supabase.
+    """
+
+    response: AuthResponse = supabase.auth.sign_up(credentials)
+
+    if getattr(response, "error", None):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=response.error.message
         )
-        
-        return response
-    
-    except AuthApiError as e:
-        map_auth_exceptions(e)
+
+    if not response.user.identities:
+        raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="No se pudo completar el registro con los datos proporcionados."
+    )
+
+    return response
 
 def login(email: str, password: str, supabase: Client) -> Session:
     try:
