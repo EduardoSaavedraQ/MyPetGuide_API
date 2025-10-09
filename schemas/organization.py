@@ -1,48 +1,33 @@
 from sqlmodel import SQLModel, Field
 from uuid import UUID
-from pydantic import EmailStr, model_validator
-from pydantic_core import PydanticCustomError
+from schemas.auth import SignUpForm
 
-class OrganizationCreate(SQLModel):
+class OrganizationCreate(SignUpForm):
     """Modelo para la validación de datos al crear una nueva organización.
 
-    Esta clase se utiliza para recibir y validar los datos necesarios para registrar una
-    nueva organización en el sistema. Hereda de SQLModel y utiliza validadores de
-    Pydantic para asegurar la integridad y el formato correcto de los datos, como
-    la coincidencia de las contraseñas.
+    Hereda de `SignUpForm` para reutilizar la validación de credenciales
+    (email y contraseñas) y añade los campos específicos para el perfil de
+    una organización.
 
     Attributes:
-        email (EmailStr): Correo electrónico del administrador de la organización.
-        password (str): Contraseña para la cuenta (entre 8 y 16 caracteres).
-        password_confirm (str): Campo de confirmación que debe coincidir con `password`.
         organization_name (str): Nombre de la organización.
         admin_first_name (str): Nombre(s) del administrador.
         admin_last_name (str): Apellido paterno del administrador.
         admin_slast_name (str | None): Apellido materno del administrador (opcional).
         biography (str | None): Biografía o descripción de la organización (opcional).
 
+    Los campos `email`, `password` y `password_confirm` son heredados de `SignUpForm`.
+
     Raises:
-        PydanticCustomError: Se lanza si los campos `password` y `password_confirm` no coinciden durante la validación del modelo.
+        PydanticCustomError: Se lanza si las contraseñas no coinciden (comportamiento
+                            heredado de `SignUpForm`).
     """
 
-    email: EmailStr = Field(..., description="Correo electrónico del usuario")
-    password: str = Field(..., min_length=8, max_length=16, description="Contraseña del usuario (8-16 caracteres)")
-    password_confirm: str
     organization_name: str = Field(..., min_length=1, max_length=255, description="Nombre de la organización")
     admin_first_name: str = Field(..., min_length=1, max_length=50, description="Nombre(s) del administrador de la cuenta de la organización")
     admin_last_name: str = Field(..., min_length=1, max_length=50, description="Apellido paterno del administrador de la cuenta de la organización")
     admin_slast_name: str | None = Field(default=None, min_length=1, max_length=50, description="Apellido materno del administrador de la cuenta de la organización (opcional)")
     biography: str | None = Field(default=None, min_length=1, description="Descripción o biografía de la organización (opcional)")
-
-    @model_validator(mode="after")
-    def check_passwords_match(self) -> "OrganizationCreate":
-        if self.password != self.password_confirm:
-            raise PydanticCustomError(
-                'passwords_mismatch',
-                'Las contraseñas no coinciden'
-            )
-
-        return self
 
 class OrganizationRead(SQLModel):
     """Modelo para representar los datos públicos de una organización.
@@ -94,7 +79,8 @@ class OrganizationCreated(OrganizationRead):
 
     Attributes:
         jwt (str | None): Token de acceso JWT para la sesión del nuevo usuario.
-        Los demás atributos son heredados de `OrganizationRead`.
+        
+    Los demás atributos son heredados de `OrganizationRead`.
     """
 
     jwt: str | None = None
