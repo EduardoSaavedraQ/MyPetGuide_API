@@ -1,40 +1,58 @@
 from sqlmodel import UUID
-from schemas.users import UserCreate, UserRead
-from services.image_service import upload_image_to_supabase, replace_image_profile
+from storage3.types import UploadResponse
+from schemas.users import UserRead
+from services.image_services import upload_image_to_supabase, replace_image
 from supabase import Client
+from postgrest.base_request_builder import APIResponse
 from services.ml.kmeans_service import predict_cluster
 from utils.user import USER_FEAUTURES_TO_SCALE, USER_BOOL_FEATURES, can_clusterize, transform_bool_cluster_features_to_int
 from services.ml.scaler_service import scale_data
 from typing import Any
 
-def create_user_db(supabase: Client, user_profile: UserCreate, id_user: UUID, image: bytes | None = None) -> UserRead:
-    data_to_insert: dict = user_profile.model_dump(include={
-                                "first_name",
-                                "last_name",
-                                "slast_name"
-                            })
-    
+def create_user_db(supabase: Client,
+    user_profile: dict[str, Any],
+    id_user: UUID,
+    image: bytes | None = None
+) -> dict[str, Any]:
+    """
+    Crea un nuevo registro en la tabla users_profiles de Supabase.
+
+    Args:
+        supabase (supabase.Client): El cliente de Supabase con el que se accederá a la base de datos.
+        user_profile (dict[str, Any]): Diccionario que contiene los campos que se insertarán en la tabla.
+        id_user (UUID): El UUID asociado a la cuenta del nuevo usuario.
+        image (bytes | None): La imagen (opcional) que aparecerá como foto de perfil del usuario.
+    """
+
+    data_to_insert: dict = user_profile
+
     data_to_insert["id_user"] = id_user
 
-    response = (
+    response: APIResponse = (
         supabase.table("users_profiles")
         .insert(data_to_insert)
         .execute()
     )
 
-    created_user: UserRead = UserRead(**response.data[0])
+    created_user: dict[str, Any] = response.data[0]
 
     if image is not None:
-        upload_response = upload_image_to_supabase(id=id_user, image=image, bucket="avatars", path="public/users", supabase=supabase)
+        upload_response: UploadResponse = upload_image_to_supabase(
+            id=id_user,
+            image=image,
+            bucket="avatars",
+            path="public/users",
+            supabase=supabase
+        )
 
-        update_response = (
+        update_response: APIResponse = (
             supabase.table("users_profiles")
             .update({"photo_url": upload_response.path})
-            .eq("id_user", created_user.id_user)
+            .eq("id_user", created_user["id_user"])
             .execute()
         )
 
-        created_user.photo_url = upload_response.path
+        created_user["photo_url"] = upload_response.path
 
     return created_user
 
@@ -48,7 +66,7 @@ def update_user_profile(
     if image is not None:
         # Si ya hay foto, reemplazar; si no, subir nueva
         if data_to_update.get("photo_url"):
-            upload_response = replace_image_profile(
+            upload_response = replace_image(
                 id=id_user, image=image, bucket="avatars", path="public/users", supabase=supabase
             )
         else:
