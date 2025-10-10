@@ -91,6 +91,27 @@ def signup(credentials: dict, supabase: Client) -> AuthResponse:
     return response
 
 def login(email: str, password: str, supabase: Client) -> Session:
+    """Autentica a un usuario utilizando su correo y contraseña.
+
+    Esta función intenta iniciar sesión en Supabase con las credenciales
+    proporcionadas. Si la autenticación falla (ej. contraseña incorrecta),
+    captura el error `AuthApiError` de Supabase y lo convierte en una
+    excepción `HTTPException` con código de estado 401 (No autorizado).
+
+    Args:
+        email (str): El correo electrónico del usuario que intenta iniciar sesión.
+        password (str): La contraseña del usuario.
+        supabase (Client): Una instancia activa del cliente de Supabase.
+
+    Raises:
+        HTTPException(401): Si las credenciales son inválidas y la autenticación
+                            falla en Supabase.
+
+    Returns:
+        Session: Un objeto de sesión de Supabase que contiene el token de acceso,
+                el token de refresco y la información del usuario autenticado.
+    """
+
     try:
         response = supabase.auth.sign_in_with_password({
             "email": email,
@@ -107,6 +128,31 @@ def login(email: str, password: str, supabase: Client) -> Session:
 async def get_current_active_user(
         token: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict[str, Any]:
+    """Dependencia de FastAPI para autenticar y validar un JWT de Supabase.
+
+    Esta función actúa como una dependencia de seguridad que se puede inyectar
+    en los endpoints que requieren autenticación. Realiza las siguientes acciones:
+
+    1.  Extrae el token JWT del encabezado `Authorization: Bearer`.
+    2.  Obtiene el JSON Web Key Set (JWKS) para verificar la firma del token.
+    3.  Decodifica y valida el token, incluyendo su firma, audiencia y fecha de expiración.
+    4.  Asegura que el payload del token contenga el identificador del usuario (la claim 'sub').
+
+    Si alguna de estas validaciones falla, la función lanza una `HTTPException`
+    con un código 401, deteniendo la ejecución de la petición.
+
+    Args:
+        token (HTTPAuthorizationCredentials): Las credenciales del token Bearer,
+                                            inyectadas automáticamente por FastAPI.
+
+    Raises:
+        HTTPException (401): Si el token ha expirado, es inválido, tiene una firma
+                            incorrecta, o le falta la claim 'sub'.
+
+    Returns:
+        dict[str,Any]: El payload decodificado del JWT, que contiene la
+                        información del usuario autenticado.
+    """
 
     try:
         jwks = await get_jwks()
@@ -146,6 +192,27 @@ async def get_current_active_user(
         )
     
 def get_user_role(user_uuid: str, supabase: Client) -> str:
+    """Determina el rol de un usuario consultando las tablas de perfiles.
+
+    Esta función de utilidad identifica si un UUID de usuario corresponde a un
+    'Usuario' normal o a una 'Organización'. Realiza una búsqueda secuencial:
+    primero en la tabla `users_profiles` y, si no encuentra un perfil,
+    continúa en la tabla `organizations_profiles`.
+
+    Es útil para la lógica de autorización después de que un usuario ha sido
+    autenticado para determinar a qué recursos tiene acceso.
+
+    Args:
+        user_uuid (str): El UUID del usuario (generalmente extraído de la
+                        claim 'sub' del JWT).
+        supabase (Client): Una instancia activa del cliente de Supabase para
+                        ejecutar las consultas a la base de datos.
+
+    Returns:
+        str: La cadena "User" o "Organization" si se encuentra un perfil,
+            o una cadena vacía "" si el UUID no existe en ninguna de las dos tablas.
+    """
+
     response = (
         supabase.table("users_profiles")
         .select("id_profile")
