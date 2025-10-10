@@ -1,6 +1,6 @@
 from supabase import Client
 from typing import Any
-from services.image_service import replace_image_profile, upload_image_to_supabase
+from services.image_services import upload_image_to_supabase
 from services.ml.kmeans_service import predict_cluster
 from services.ml.scaler_service import scale_data
 from services.ml.decission_tree_service import predict_compatible_cluster
@@ -14,18 +14,41 @@ def create_pet(
         id_user: str,
         supabase: Client
 ) -> dict[str, Any]:
+    """Orquesta la creación completa de un perfil de mascota.
+
+    Esta función de servicio maneja toda la lógica de negocio para registrar una
+    nueva mascota en el sistema. El proceso incluye:
+    1.  Subir una imagen de perfil a Supabase Storage (si se proporciona).
+    2.  Asignar la mascota al usuario propietario (`id_owner`).
+    3.  Si hay suficientes datos, procesar las características de la mascota,
+        escalarlas y asignarle un clúster (`pet_label`) mediante un modelo K-means.
+    4.  Insertar el registro final en la tabla `pets` de la base de datos.
+    5.  Consultar y devolver el perfil completo de la mascota recién creada,
+        incluyendo los datos anidados de sus razas.
+
+    Args:
+        data (dict[str, Any]): Diccionario con los datos ya validados del perfil
+                            de la mascota (usualmente desde un modelo `PetCreate`).
+        image (bytes | None): La imagen de perfil en formato de bytes, o `None` si
+                              no se proporcionó ninguna.
+        id_user (str): El UUID del usuario autenticado que se registrará como
+                    el dueño de la mascota.
+        supabase (Client): Una instancia activa del cliente de Supabase.
+
+    Returns:
+        dict[str, Any]: Un diccionario que representa el perfil completo de la
+                        mascota recién creada, con los datos de las razas
+                        anidados, listo para ser enviado como respuesta de la API.
+    """
+
     if image is not None:
-        # Si ya hay foto, reemplazar; si no, subir nueva
-        if data.get("photo_url"):
-            upload_response = replace_image_profile(
-                id=id_user, image=image, bucket="avatars", path="public/pets", supabase=supabase
-            )
-        else:
-            upload_response = upload_image_to_supabase(
-                id=id_user, image=image, bucket="avatars", path="public/pets", supabase=supabase
-            )
+
+        upload_response = upload_image_to_supabase(
+            id=id_user, image=image, bucket="avatars", path="public/pets", supabase=supabase
+        )
+
         data["photo_url"] = upload_response.path
-        
+
     data["id_owner"] = id_user
 
     if can_clusterize_pet(data) and data.get("species") is not None:
@@ -46,6 +69,15 @@ def create_pet(
     )
 
     created_pet: dict[str, Any] = response.data[0]
+
+    response = (
+        supabase.table("pets")
+        .select("*, main_breed:id_breed1!inner(*), secondary_breed:id_breed2(*)'")
+        .eq("id_pet", created_pet["id_pet"])
+        .execute()
+    )
+
+    created_pet = response.data[0]
 
     return created_pet
 
