@@ -137,44 +137,33 @@ async def create_user(
             detail=f"Error al registrar la cuenta. Error: {e}"
         )
 
-@router.get("/profile", response_model=UserRead)
-async def get_user_profile(
-    supabase_anon_client: Client = Depends(get_supabase_client)
-) -> UserRead:
-    try:
-        user = auth.get_current_user(supabase=supabase_anon_client)
-
-        response = (
-            supabase_anon_client.table("users_profiles")
-            .select("*")
-            .eq("id_user", user.id)
-            .execute()
-        )
-
-        if not response.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No se encontró el perfil del usuario."
-            )
-
-        user_profile: UserRead = UserRead(**response.data[0])
-
-        return user_profile
-
-    except AuthApiError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No autenticado"
-        )
-    
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno del servidor"
-        )
-
 @router.post("/profile")
-async def create_user_profile(profile_data: UserProfileCreate, supabase: Client = Depends(get_supabase_admin_client), current_user: dict[str, Any] = Depends(auth.get_current_active_user)) -> dict[str, str]:
+async def create_user_profile(
+    profile_data: UserProfileCreate,
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(auth.get_current_active_user)
+) -> dict[str, str]:
+    """Crea o actualiza el perfil de compatibilidad del usuario autenticado.
+
+    Este endpoint permite a un usuario normal registrado completar su
+    perfil, que son utilizados por el sistema de recomendación de mascotas.
+
+    Args:
+        profile_data (UserProfileCreate): Cuerpo de la petición con los datos del
+                                        perfil a crear o actualizar.
+        supabase (Client): Dependencia para obtener el cliente de Supabase.
+        current_user (dict): Dependencia que valida el JWT y devuelve los datos
+                            del usuario autenticado.
+
+    Raises:
+        HTTPException (422): Si los datos proporcionados no cumplen con el formato
+                            o las validaciones esperadas.
+        HTTPException (401): Si el token JWT no es válido o ha expirado.
+
+    Returns:
+        dict[str, str]: Un mensaje de confirmación de que la operación fue exitosa.
+    """
+
     try:
         update_user_profile(supabase=supabase, id_user=current_user['sub'], data_to_update=profile_data.model_dump(exclude_unset=True))
 
@@ -191,7 +180,25 @@ async def get_all_user_data(
     supabase: Client = Depends(get_supabase_admin_client),
     current_user: dict[str, Any] = Depends(auth.get_current_active_user)
 ) -> dict[str, Any]:
-    
+    """Obtiene todos los datos del perfil del usuario autenticado.
+
+    Este endpoint protegido recupera la información completa del perfil del
+    usuario que realiza la petición. Combina los datos almacenados en la
+    base de datos (nombre, preferencias, mascotas, etc.) con la información del token
+    de autenticación (como el correo electrónico).
+
+    Args:
+        supabase (Client): Dependencia para obtener el cliente de Supabase.
+        current_user (dict): Dependencia que valida el JWT y devuelve el
+                            payload del usuario.
+
+    Raises:
+        HTTPException (401): Si el token JWT no es válido o ha expirado.
+
+    Returns:
+        dict[str, Any]: Un objeto JSON con el perfil completo del usuario.
+    """
+
     user_data = get_user_all_data(supabase=supabase, id_user=current_user['sub'])
     user_data["email"] = current_user["email"]
 

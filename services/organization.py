@@ -54,6 +54,24 @@ def create_organization_db(
     return created_organization
 
 def get_organization_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
+    """Recopila y estructura todos los datos de una organización y sus mascotas.
+
+    Esta función de servicio obtiene el perfil completo de una organización y la
+    lista de todas las mascotas que ha puesto en adopción.
+
+    Una característica clave es que itera sobre la lista de mascotas y convierte
+    sus rutas de imágenes (`photo_url`) en **URLs firmadas (signed URLs)** con una
+    duración limitada, proporcionando un acceso seguro y temporal a los archivos.
+
+    Args:
+        supabase (Client): Instancia del cliente de Supabase para ejecutar las consultas.
+        id_user (str): El UUID de la cuenta de usuario asociada a la organización.
+
+    Returns:
+        dict[str, Any]: Un diccionario con dos claves: 'organization' (con el perfil
+                        de la organización) y 'pets' (una lista de sus mascotas).
+                        Las `photo_url` de las mascotas son URLs firmadas temporalmente.
+    """
 
     organization_query_response: dict = (
         supabase.table("organizations_profiles")
@@ -71,7 +89,11 @@ def get_organization_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
         .execute()
     )
 
-    organization_pets: dict = pet_query_response.data
+    organization_pets: list = pet_query_response.data
+
+    for pet in organization_pets:
+        if pet["photo_url"] is not None:
+            pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=3600)
 
     return {
         "organization": organization_data,

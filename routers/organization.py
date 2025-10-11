@@ -143,7 +143,25 @@ async def get_all_user_data(
     supabase: Client = Depends(get_supabase_admin_client),
     current_user: dict[str, Any] = Depends(auth.get_current_active_user)
 ) -> dict[str, Any]:
-    
+    """Obtiene todos los datos del perfil de la organización.
+
+    Este endpoint protegido recupera la información completa del perfil del
+    de la organización del usuario que realiza la petición. Combina los datos almacenados en la
+    base de datos (nombre de la organización, nombre de administrador, mascotas, etc.) con la información del token
+    de autenticación (como el correo electrónico).
+
+    Args:
+        supabase (Client): Dependencia para obtener el cliente de Supabase.
+        current_user (dict): Dependencia que valida el JWT y devuelve el
+                            payload del usuario.
+
+    Raises:
+        HTTPException (401): Si el token JWT no es válido o ha expirado.
+
+    Returns:
+        dict[str, Any]: Un objeto JSON con el perfil completo de la organización.
+    """
+
     organization_data = get_organization_all_data(supabase=supabase, id_user=current_user['sub'])
     organization_data["email"] = current_user["email"]
 

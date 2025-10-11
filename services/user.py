@@ -1,7 +1,7 @@
 from sqlmodel import UUID
 from storage3.types import UploadResponse
 from schemas.users import UserRead
-from services.image_services import upload_image_to_supabase, replace_image
+from services.image_services import upload_image_to_supabase
 from supabase import Client
 from postgrest.base_request_builder import APIResponse
 from services.ml.kmeans_service import predict_cluster
@@ -14,14 +14,21 @@ def create_user_db(supabase: Client,
     id_user: UUID,
     image: bytes | None = None
 ) -> dict[str, Any]:
-    """
-    Crea un nuevo registro en la tabla users_profiles de Supabase.
+    """Crea un registro de perfil para un nuevo usuario en la base de datos.
+
+    Inserta los datos del perfil en la tabla `users_profiles`. Si se proporciona
+    una imagen, la sube a Supabase Storage y, en una segunda operación, actualiza
+    el registro del perfil recién creado con la URL de la foto.
 
     Args:
-        supabase (supabase.Client): El cliente de Supabase con el que se accederá a la base de datos.
-        user_profile (dict[str, Any]): Diccionario que contiene los campos que se insertarán en la tabla.
-        id_user (UUID): El UUID asociado a la cuenta del nuevo usuario.
-        image (bytes | None): La imagen (opcional) que aparecerá como foto de perfil del usuario.
+        supabase (Client): El cliente de Supabase para acceder a la base de datos.
+        user_profile (dict[str, Any]): Diccionario con los campos a insertar.
+        id_user (UUID): El UUID de la cuenta de usuario a la que se asocia el perfil.
+        image (bytes | None): Opcional, la imagen de perfil del usuario en bytes.
+
+    Returns:
+        dict[str, Any]: Un diccionario con los datos del perfil de usuario recién
+                        creado, incluyendo la `photo_url` si se subió una imagen.
     """
 
     data_to_insert: dict = user_profile
@@ -59,21 +66,52 @@ def create_user_db(supabase: Client,
 def update_user_profile(
     supabase: Client,
     id_user: UUID,
-    data_to_update: dict,
+    data_to_update: dict[str, Any],
     image: bytes | None = None
-) -> UserRead:
-    # Procesar imagen si existe
+) -> dict[str, Any]:
+    """Actualiza un perfil de usuario, su foto y recalcula su etiqueta de clúster.
+
+    Esta función de servicio maneja la actualización de un perfil de usuario. Si se
+    proporciona una nueva imagen, sigue un proceso de "subir y luego borrar"
+    para reemplazar de forma segura la foto existente en Supabase Storage.
+
+    Además, si se proporcionan suficientes datos de compatibilidad, recalcula
+    la etiqueta de clúster (`owner_label`) del usuario usando el modelo K-means.
+    Finalmente, actualiza el registro en la base de datos con todos los cambios.
+
+    Args:
+        supabase (Client): Instancia del cliente de Supabase.
+        id_user (UUID): El UUID del usuario cuyo perfil se va a actualizar.
+        data_to_update (dict[str, Any]): Diccionario con los campos a modificar.
+        image (bytes | None): Opcional, los bytes de la nueva foto de perfil.
+
+    Returns:
+        dict[str, Any]: Un diccionario con los datos del perfil actualizado,
+                        directamente desde la respuesta de la base de datos.
+    """
+
     if image is not None:
-        # Si ya hay foto, reemplazar; si no, subir nueva
-        if data_to_update.get("photo_url"):
-            upload_response = replace_image(
-                id=id_user, image=image, bucket="avatars", path="public/users", supabase=supabase
-            )
-        else:
-            upload_response = upload_image_to_supabase(
-                id=id_user, image=image, bucket="avatars", path="public/users", supabase=supabase
-            )
+        old_photo_path = None
+
+        response_image_field = (
+            supabase.table("users_profiles")
+            .select("photo_url")
+            .eq("id_user", id_user)
+            .single()
+            .execute()
+        )
+        
+        if response_image_field.data and response_image_field.data.get("photo_url"):
+            old_photo_path = response_image_field.data["photo_url"]
+
+        upload_response = upload_image_to_supabase(
+            id=id_user, image=image, bucket="avatars", path="public/users", supabase=supabase
+        )
+
         data_to_update["photo_url"] = upload_response.path
+
+        if old_photo_path:
+            supabase.storage.from_("avatars").remove([old_photo_path])
 
     if can_clusterize(data_to_update):
         data_to_update = transform_bool_cluster_features_to_int(data_to_update)
@@ -82,20 +120,34 @@ def update_user_profile(
         scaled_data = scale_data("owner", features_to_scale)
         features = scaled_data[0] + bool_features
         cluster = predict_cluster("owner", features)
-        data_to_update["owner_label"] = cluster[0]  # O int(cluster[0])
+        data_to_update["owner_label"] = cluster[0]
 
-    # Actualizar todo en una sola consulta
-    response = (
+    response: APIResponse = (
         supabase.table("users_profiles")
         .update(data_to_update)
         .eq("id_user", id_user)
         .execute()
     )
 
-    updated_user: UserRead = UserRead(**response.data[0])
-    return updated_user
+    return response.data[0]
 
 def get_user_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
+    """Recopila y estructura todos los datos de un usuario, incluyendo perfil y mascotas.
+
+    Esta función obtiene el perfil de un usuario y la lista completa de sus mascotas
+    asociadas. Una característica clave es que convierte todas las rutas de imágenes
+    (tanto del usuario como de sus mascotas) en URLs firmadas (signed URLs) con una
+    duración limitada, proporcionando un acceso seguro y temporal a los archivos.
+
+    Args:
+        supabase (Client): Instancia del cliente de Supabase.
+        id_user (str): El UUID del usuario cuyos datos se van a recuperar.
+
+    Returns:
+        dict[str, Any]: Un diccionario con dos claves: 'user' (que contiene el perfil
+                        del usuario) y 'pets' (una lista de sus mascotas). Todas
+                        las 'photo_url' son URLs firmadas temporalmente.
+    """
 
     user_query_response: dict = (
         supabase.table("users_profiles")
@@ -115,7 +167,7 @@ def get_user_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
         .execute()
     )
 
-    user_pets: dict = pet_query_response.data
+    user_pets: list = pet_query_response.data
 
     for pet in user_pets:
         if pet["photo_url"] is not None:

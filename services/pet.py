@@ -30,7 +30,7 @@ def create_pet(
         data (dict[str, Any]): Diccionario con los datos ya validados del perfil
                             de la mascota (usualmente desde un modelo `PetCreate`).
         image (bytes | None): La imagen de perfil en formato de bytes, o `None` si
-                              no se proporcionó ninguna.
+                            no se proporcionó ninguna.
         id_user (str): El UUID del usuario autenticado que se registrará como
                     el dueño de la mascota.
         supabase (Client): Una instancia activa del cliente de Supabase.
@@ -82,6 +82,27 @@ def create_pet(
     return created_pet
 
 def get_all_pets_in_adoption(supabase: Client, id_user: str, page: int | None = None) -> list[dict[str, Any]]:
+    """Obtiene una lista paginada de todas las mascotas en adopción.
+
+    Esta función consulta la base de datos para recuperar todas las mascotas que
+    están marcadas con `in_adoption_process = True`. Excluye las mascotas que
+    pertenecen al usuario que realiza la solicitud para evitar que vea sus
+    propias mascotas en el listado. Además, genera URLs firmadas y temporales
+    para las imágenes de las mascotas.
+
+    Args:
+        supabase (Client): Instancia del cliente de Supabase.
+        id_user (str): El UUID del usuario que realiza la consulta.
+        page (int | None): Opcional, el número de página para la paginación.
+
+    Raises:
+        ValueError: Si el número de página es menor o igual a 0.
+
+    Returns:
+        list[dict[str, Any]]: Una lista de diccionarios, donde cada uno representa
+                            el perfil de una mascota en adopción.
+    """
+
     if page <= 0:
         raise ValueError("El número de página debe ser mayor a 0.")
 
@@ -107,6 +128,33 @@ def get_all_pets_in_adoption(supabase: Client, id_user: str, page: int | None = 
     return response.data
 
 def get_recommended_pets(supabase: Client, id_user: str, page: int | None = None) -> list[dict[str, Any]]:
+    """Obtiene una lista de mascotas recomendadas para un usuario específico.
+
+    Esta es la función principal del sistema de recomendación. Sigue un proceso
+    de varios pasos:
+    1.  Obtiene y valida el perfil del usuario.
+    2.  Preprocesa las características del usuario (escalado, transformación).
+    3.  Utiliza un modelo de árbol de decisión para predecir el clúster de mascotas
+        (`pet_label`) que es más compatible con el perfil del usuario.
+    4.  Busca en la base de datos todas las mascotas en adopción que pertenezcan
+        a ese clúster y coincidan con la especie preferida del usuario.
+    5.  Genera URLs firmadas para las imágenes de las mascotas recomendadas.
+
+    Args:
+        supabase (Client): Instancia del cliente de Supabase.
+        id_user (str): El UUID del usuario para quien se generarán las recomendaciones.
+        page (int | None): Opcional, el número de página para la paginación.
+
+    Raises:
+        HTTPException (404): Si no se encuentra el perfil del usuario.
+        HTTPException (400): Si el perfil del usuario no tiene suficientes datos
+                            para generar una recomendación, o si el número de
+                            página es inválido.
+
+    Returns:
+        list[dict[str, Any]]: Una lista con los perfiles de las mascotas compatibles.
+    """
+
     user_profile_response = (
         supabase.table("users_profiles")
         .select(", ".join(USER_CLUSTER_FEATURES + ["preferred_species"]))
@@ -162,7 +210,7 @@ def get_recommended_pets(supabase: Client, id_user: str, page: int | None = None
 
     response = query.execute()
 
-    results = filter(lambda pet: pet["species"]["species"] == user_data["preferred_species"], response.data)
+    results = list(filter(lambda pet: pet["species"]["species"] == user_data["preferred_species"], response.data))
 
     for pet in response.data:
         if pet["photo_url"] is not None:
