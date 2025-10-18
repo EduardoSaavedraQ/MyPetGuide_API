@@ -33,7 +33,7 @@ def upload_image_to_supabase(id: str, image: bytes, bucket: str, path: str, supa
             file=image,
             path=f"{path}/{image_filename}",
             file_options={
-                "upsert": True,
+                "upsert": "true",
                 "content-type": content_type
             }
         )
