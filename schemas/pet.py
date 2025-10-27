@@ -83,7 +83,7 @@ class PetRead(SQLModel):
         secondary_breed (BreedRead | None): Objeto anidado para la raza secundaria.
         pet_name (str): Nombre de la mascota.
         sex (bool | None): Sexo de la mascota (True para macho, False para hembra).
-        age (PositiveInt | None): Edad de la mascota en años.
+        age (int | None): Edad de la mascota en años.
         birth_date (str | None): Fecha de nacimiento en formato AAAA-MM-DD.
         pet_description (str | None): Descripción general de la mascota.
         in_adoption_process (bool): Indica si la mascota está actualmente en proceso de adopción.
@@ -102,7 +102,7 @@ class PetRead(SQLModel):
     """
 
     id_pet: PositiveInt
-    photo_url: str | None = None
+    photo_url: str | dict | None = None
     id_owner: str | None
     id_breed1: int
     id_breed2: int | None = None
@@ -110,7 +110,7 @@ class PetRead(SQLModel):
     secondary_breed: BreedRead | None = None
     pet_name: str | None = None
     sex: bool | None = None
-    age: PositiveInt | None = None
+    age: int | None = None
     birth_date: str | None = None
     pet_description: str | None = None
     in_adoption_process: bool = False

@@ -5,11 +5,12 @@ from services import pet
 from typing import Any
 from services import auth
 from schemas.breed import BreedRead
+from schemas.pet import PetRead, PetReadWithPetLabel
 from typing import List
 
 router = APIRouter(prefix="/pets", tags=["pets"])
 
-@router.get("/for-adoption")
+@router.get("/for-adoption", response_model=List[PetRead])
 async def get_pets_for_adoption(
     page: int | None = None,
     supabase: Client = Depends(get_supabase_admin_client),
@@ -34,7 +35,7 @@ async def get_pets_for_adoption(
 
     return pets
 
-@router.get("/recommended")
+@router.get("/recommended", response_model=List[PetReadWithPetLabel])
 async def get_recommended_pets(
     page: int | None = None,
     supabase: Client = Depends(get_supabase_admin_client),

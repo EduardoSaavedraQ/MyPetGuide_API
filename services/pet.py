@@ -108,7 +108,7 @@ def get_all_pets_in_adoption(supabase: Client, id_user: str, page: int | None = 
 
     query = (
         supabase.table("pets")
-        .select("*")
+        .select("*, species:id_breed1(species), main_breed:id_breed1!inner(*), secondary_breed:id_breed2(*)")
         .eq("in_adoption_process", True)
         .neq("id_owner", id_user)
     )
@@ -189,7 +189,7 @@ def get_recommended_pets(supabase: Client, id_user: str, page: int | None = None
 
     query = (
         supabase.table("pets")
-        .select("*, species:id_breed1(species)")
+        .select("*, species:id_breed1(species), main_breed:id_breed1!inner(*), secondary_breed:id_breed2(*)")
         .eq("in_adoption_process", True)
         .neq("id_owner", id_user)
         .eq("pet_label", pet_label)
