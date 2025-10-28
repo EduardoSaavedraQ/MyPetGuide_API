@@ -4,7 +4,7 @@ from services.image_services import upload_image_to_supabase
 from services.ml.kmeans_service import predict_cluster
 from services.ml.scaler_service import scale_data
 from services.ml.decission_tree_service import predict_compatible_cluster
-from utils.pet import PET_FEATURES_TO_SCALE, PET_BOOL_FEATURES, can_clusterize as can_clusterize_pet, transform_bool_cluster_features_to_int as transform_bool_pet
+from utils.pet import preprocess_pet_data_for_clustering, can_clusterize_pet
 from utils.user import can_clusterize as can_clusterize_user, USER_CLUSTER_FEATURES, USER_BOOL_FEATURES, USER_FEAUTURES_TO_SCALE, transform_bool_cluster_features_to_int as transform_bool_user
 from fastapi import HTTPException, status
 
@@ -52,12 +52,8 @@ def create_pet(
     data["id_owner"] = id_user
 
     if can_clusterize_pet(data) and data.get("species") is not None:
-        data = transform_bool_pet(data)
-        bool_features = [data[field] for field in PET_BOOL_FEATURES]
-        features_to_scale = [data[field] for field in PET_FEATURES_TO_SCALE]
-        scaled_data = scale_data("pet", features_to_scale)
-        features = scaled_data[0] + bool_features
-        cluster = predict_cluster("cat" if not data["species"] else "dog", features)
+        preprocessed_pet_data: list = preprocess_pet_data_for_clustering(data)
+        cluster = predict_cluster("cat" if not data["species"] else "dog", preprocessed_pet_data)
         data["pet_label"] = cluster[0]
 
     data.pop("species")
