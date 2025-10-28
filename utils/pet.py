@@ -92,4 +92,4 @@ def preprocess_pet_data_for_clustering(pet_data: dict) -> list:
     
     df = pd.get_dummies(df, columns=ORDERED_PET_ORDINAL_FEATURES, dtype=int)
 
-    return df.to_numpy().tolist()[0]
+    return df.values.flatten().tolist()
