@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from dotenv import load_dotenv
 from services.auth import get_current_active_user
 from typing import Any
-from routers import auth, organization, user, pet, pets
+from routers import auth, organization, user, pet, pets, public_profile
 
 
 app = FastAPI()
@@ -12,6 +12,7 @@ app.include_router(organization.router)
 app.include_router(user.router)
 app.include_router(pet.router)
 app.include_router(pets.router)
+app.include_router(public_profile.router)
 
 
 load_dotenv()

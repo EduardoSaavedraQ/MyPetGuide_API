@@ -24,12 +24,11 @@ class UserCreate(SignUpForm):
     last_name: str = Field(..., min_length=1, max_length=50, description="Apellido paterno del usuario")
     slast_name: str | None = Field(default=None, min_length=1, max_length=50, description="Apellido materno del usuario (opcional)")
 
-class UserRead(SQLModel):
-    """Representa el perfil completo de un usuario con sus preferencias para mascotas.
+class UserPublicInfo(SQLModel):
+    """Representa la información pública básica de un usuario.
 
-    Este modelo define la estructura completa de los datos de un usuario, incluyendo
-    su información personal y todas las características relevantes para determinar
-    la compatibilidad con una mascota.
+    Este modelo define los campos que se consideran públicos y pueden ser
+    compartidos sin comprometer la privacidad del usuario.
 
     Attributes:
         id_profile (int): Identificador único del perfil del usuario.
@@ -37,7 +36,25 @@ class UserRead(SQLModel):
         first_name (str): Nombre(s) del usuario.
         last_name (str): Apellido paterno del usuario.
         slast_name (str | None): Apellido materno del usuario (opcional).
-        photo_url (str | None): URL de la foto de perfil del usuario.
+        photo_url (str | None): URL de la foto de perfil del usuario (opcional).
+    """
+
+    id_profile: int
+    id_user: UUID
+    first_name: str
+    last_name: str
+    slast_name: str | None = None
+    photo_url: str | dict | None = None
+
+class UserRead(UserPublicInfo):
+    """Representa el perfil completo de un usuario con sus preferencias para mascotas.
+
+    Este modelo define la estructura completa de los datos de un usuario, incluyendo
+    su información personal y todas las características relevantes para determinar
+    la compatibilidad con una mascota. Hereda de `UserPublicInfo` para incluir los
+    campos públicos.
+
+    Attributes:
         house_size (int | None): Tamaño de la casa en metros cuadrados.
         house_backyard_size (int | None): Tamaño del patio o área exterior en metros cuadrados.
         family_size (int | None): Número de personas en la familia.
@@ -50,12 +67,6 @@ class UserRead(SQLModel):
         preferred_species (bool | None): Especie preferida (True para perro, False para gato).
     """
 
-    id_profile: int
-    id_user: UUID
-    first_name: str
-    last_name: str
-    slast_name: str | None = None
-    photo_url: str | None = None
     house_size: int | None = None
     house_backyard_size: int | None = None
     family_size: int | None = None
