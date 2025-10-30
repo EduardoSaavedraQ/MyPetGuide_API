@@ -29,3 +29,37 @@ def predict_compatible_clusters(model_type: str, data: list):
     predictions = model.predict_proba(data_to_predict)
 
     return predictions
+
+def sort_clusters_by_probability(probabilities: list[float], clusters: list[int]) -> tuple[list[float], list[int]]:
+    """
+    Ordena las probabilidades de mayor a menor y mantiene sincronizadas las clases.
+    En caso de empate en probabilidades, mantiene el orden original de las clases.
+    
+    Args:
+        probabilities: Lista de probabilidades [0.3, 0.5, 0.2]
+        clusters: Lista de clases/clusters [0, 1, 2]
+        
+    Returns:
+        tuple: (probabilidades_ordenadas, clusters_ordenados)
+        
+    Example:
+        # Con empate:
+        probs = [0.4, 0.4, 0.2]
+        clusters = [0, 1, 2]
+        # Returns: ([0.4, 0.4, 0.2], [0, 1, 2])  # Mantiene orden original en empate
+    """
+    if len(probabilities) != len(clusters):
+        raise ValueError("Las listas de probabilidades y clusters deben tener la misma longitud")
+        
+    # Enumerar para mantener el orden original en caso de empate
+    indexed_pairs = list(enumerate(zip(probabilities, clusters)))
+    
+    # Ordenar por probabilidad (mayor a menor) y por índice original (para empates)
+    # El índice original asegura que en caso de empate se mantenga el orden inicial
+    indexed_pairs.sort(key=lambda x: (-x[1][0], x[0]))
+    
+    # Desempaquetar los pares ordenados, ignorando los índices
+    sorted_probs = [p for _, (p, _) in indexed_pairs]
+    sorted_clusters = [c for _, (_, c) in indexed_pairs]
+    
+    return sorted_probs, sorted_clusters
