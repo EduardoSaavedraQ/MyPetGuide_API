@@ -1,5 +1,4 @@
 from utils.pet import preprocess_pet_data_for_clustering
-from services.ml.kmeans_service import predict_cluster
 import pandas as pd
 import os
 import pytest
@@ -37,22 +36,22 @@ def test_preprocess_pet_data_for_clustering_genera_las_listas_de_valores_esperad
     species: bool
 ) -> None:
 
-    df_dogs = pd.read_csv(test_pet_data_path)
-    df_preprocessed_dogs = pd.read_csv(preprocessed_test_pet_data_path)
+    df_pets = pd.read_csv(test_pet_data_path)
+    df_preprocessed_pets = pd.read_csv(preprocessed_test_pet_data_path)
 
-    for _, row in df_dogs.iterrows():
-        pet_data = row.to_dict()
+    for _, row in df_pets.iterrows():
+        pet_data: dict = row.to_dict()
         pet_data['species'] = species
 
         preprocessed_data: list = preprocess_pet_data_for_clustering(pet_data)
 
         try:
             assert preprocessed_data == pytest.approx(
-                df_preprocessed_dogs.loc[
-                    df_preprocessed_dogs['id_registro'] == pet_data['id_registro'],
+                df_preprocessed_pets.loc[
+                    df_preprocessed_pets['id_registro'] == pet_data['id_registro'],
                     ORDERED_PREPROCESSED_FEATURES
                 ].values.flatten().tolist()
             )
 
         except AssertionError as e:
-            pytest.fail(f"Fallo en el preprocesamiento o predicción para el perro con id_registro {pet_data['id_registro']}\n{str(e)}")
+            pytest.fail(f"Fallo en el preprocesamiento o para el perro con id_registro {pet_data['id_registro']}\n{str(e)}")
