@@ -7,6 +7,7 @@ from services.ml.decission_tree_service import predict_compatible_cluster
 from utils.pet import preprocess_pet_data_for_clustering, can_clusterize_pet
 from utils.user import can_clusterize as can_clusterize_user, USER_CLUSTER_FEATURES, USER_BOOL_FEATURES, USER_FEAUTURES_TO_SCALE, transform_bool_cluster_features_to_int as transform_bool_user
 from fastapi import HTTPException, status
+from numpy import ndarray
 
 def create_pet(
         data: dict[str, Any],
@@ -213,3 +214,54 @@ def get_recommended_pets(supabase: Client, id_user: str, page: int | None = None
             pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=60)
 
     return results
+
+def get_compatible_pet_clusters(user_features: dict[str, int | bool]) -> dict[str, list[int | float | str]]:
+    """
+    Devuelve un diccionario que contiene listas ordenadas con las clases del KNN correspondiente a la especie preferida,
+    sus porcentajes de probabilidad y sus respectivas descripciones. El orden es descendente según el porcentaje de probabilidad.
+
+    Args:
+        user_features (dict[str, list[int|float|str]]): Diccionario con las características del usuario.
+
+    Raises:
+        HTTPException (400): Si faltan campos o valores en las características del usuario necesarios para el modelo de KNN.
+
+    Returns:
+        dict[str, list[int | float | str]]: Diccionario con los campos `pet_clusters`, `probabilities` y `clusters_descriptions`.
+    """
+
+    from utils.user import can_predict, preprocess_user_data_for_prediction
+    from utils.pet import load_pet_clusters_descriptions
+    from services.ml.knn_service import predict_compatible_clusters, get_knn_classes, sort_clusters_by_probability
+
+    if not can_predict(user_features):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tu perfil de usuario no tiene suficientes datos para recomendar mascotas."
+        )    
+
+    preprocessed_data: list = preprocess_user_data_for_prediction(preprocessed_data)
+
+    preferred_species: bool = user_features["preferred_species"]
+
+    knn_type: str = "user_to_dogs" if preferred_species else "user_to_cats"
+
+    pet_classes: list = get_knn_classes(knn_type)
+
+    probabilities: ndarray = predict_compatible_clusters(knn_type)
+
+    sorted_probabilities, sorted_classes = sort_clusters_by_probability(probabilities=probabilities, clusters=pet_classes)
+
+    while sorted_probabilities[-1] == 0:
+        sorted_probabilities.pop()
+        sorted_classes.pop()
+
+    clusters_descriptions: list[str] = load_pet_clusters_descriptions(preferred_species, sorted_classes)
+
+    compatible_pet_clusters: dict[str, list[int | float | str]] = {
+        "pet_clusters": sorted_classes,
+        "probabilities": sorted_probabilities,
+        "clusters_descriptions" : clusters_descriptions
+    }
+
+    return compatible_pet_clusters

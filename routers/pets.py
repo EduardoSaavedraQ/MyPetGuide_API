@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import Client
+from postgrest.base_request_builder import APIResponse
 from utils.supabase import get_supabase_admin_client
 from services import pet
 from typing import Any
-from services import auth
+from services import auth, pet
 from schemas.breed import BreedRead
-from schemas.pet import PetRead, PetReadWithPetLabel
+from schemas.pet import PetRead, PetReadWithPetLabel, CompatiblePetClusters
 from typing import List
 
 router = APIRouter(prefix="/pets", tags=["pets"])
@@ -62,7 +63,8 @@ async def get_recommended_pets(
 @router.get("/breeds/{species}", response_model=List[BreedRead])
 def get_breeds_by_species(
     species: str,
-    supabase: Client = Depends(get_supabase_admin_client)
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(auth.get_current_active_user)
 ) -> list:
     """Obtiene un listado de razas para una especie específica (perro o gato).
 
@@ -101,3 +103,61 @@ def get_breeds_by_species(
     )
 
     return breeds.data
+
+@router.get('/compatible-groups', response_model=CompatiblePetClusters)
+def get_compatible_pet_clusters(
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(auth.get_current_active_user)
+) -> dict[str, list[int | float | str]]:
+    """
+    Calcula y devuelve los clusters de mascotas compatibles para el usuario autenticado.
+
+    Extrae los features del perfil del usuario desde la tabla `users_profiles`
+    usando `ORDERED_USER_FEATURES` y delega el cálculo de compatibilidad a
+    `services.pet.get_compatible_pet_clusters`.
+
+    Args:
+        supabase (Client): Cliente de Supabase (dependencia).
+        current_user (dict): Payload del JWT del usuario autenticado (dependencia).
+
+    Returns:
+        CompatiblePetClusters: Objeto (modelo de respuesta) que contiene:
+            - clusters: lista de identificadores de cluster (int).
+            - probabilities: lista de probabilidades/puntuaciones (float) ordenadas.
+            - features: (opcional) lista de nombres de features usadas en la predicción.
+            - metadata: (opcional) información adicional sobre la predicción.
+
+    Raises:
+        HTTPException (404): Si no se encuentra el perfil del usuario en la base de datos.
+
+    Notes:
+        - Esta ruta no realiza paginación ni filtrado: devuelve la predicción/estado
+        de compatibilidad (clusters) para el usuario actual.
+        - El formato exacto devuelto está definido por el modelo `CompatiblePetClusters`.
+    """
+
+    from utils.user import ORDERED_USER_FEATURES
+
+    fields: str = ""
+
+    for field in ORDERED_USER_FEATURES:
+        fields += field + ','
+
+    fields += "preferred_species"
+
+    response: APIResponse = (
+        supabase.table("users_profiles")
+        .select(fields)
+        .eq("id_user", current_user["sub"])
+        .execute()
+    )
+
+    if not response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontró el perfil del usuario especificado."
+        )
+
+    user_features: dict = response.data[0]
+
+    return pet.get_compatible_pet_clusters(user_features)

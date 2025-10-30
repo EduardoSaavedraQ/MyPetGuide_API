@@ -42,24 +42,6 @@ PET_ORDINAL_FEATURES_VALUES: dict = {
     "care_difficulty": [1, 2, 3],
 }
 
-DOG_CLUSTER_0_SUMMARY: str = """
-    Los siguientes son los perros con el perfil más "estándar". Predominan los machos adultos jóvenes (promedio de 3.3 años), de
-    tamaño mediano a grande. Tienen un perfil perfectamente balaneado con niveles normales de energía y sociabilidad y, además,
-    son relativamente fáciles de cuidar. Encontrarás que la mayoría de estos perros están perfectamente sanos, siendo que ya cuentan
-    con sus vacunas, están desparasitados y esterilizados.
-
-    Estos perros son ideales para dueños que buscan un perro predecible, ya maduro, sin sorpresas.
-"""
-
-DOG_CLUSTER_1_SUMMARY: str = """
-    Estos perros son de bajo mantenimiento. En su mayoría son adultos jóvenes (promedio de 3.4 años) de tamaño chico. Son
-    universalmente amigables con una gran tendencia a ser muy sociables tanto con humanos como con otras mascotas. La mayoría de
-    estos poseen un pelaje corto que no requiere mucho cuidado y son muy fáciles de cuidar y mantener en general. Poseen un nivel
-    normal de energía.
-
-    Estos perros son ideales para dueños primerizos, personas con presupuestos ajustados o que viven en espacios más pequeños.
-"""
-
 def can_clusterize(pet_data: dict) -> bool:
     """
     Verifica si todos los campos necesarios para clusterizar no son None.
@@ -111,3 +93,32 @@ def preprocess_pet_data_for_clustering(pet_data: dict) -> list:
     df = pd.get_dummies(df, columns=ORDERED_PET_ORDINAL_FEATURES, dtype=int)
 
     return df.values.flatten().tolist()
+
+def load_pet_clusters_descriptions(species: bool, pet_clusters: list[str | int]) -> list[str]:
+    """
+    Obtiene la descripción de los clústeres de mascotas especificados.
+
+    Args:
+        species (bool): True para perro y False para gato.
+        pet_clusters (list[str|int]): Lista de identificadores de los clústeres.
+
+    Returns:
+        list[str]: La lista de las descripciones de los clústeres especificados.
+    """
+
+    import json
+    import os
+
+    pet_clusters_descriptions_file_path: str = os.path.join(os.path.dirname(__file__), "../pet_cluster_descriptions.json")
+
+    with open(pet_clusters_descriptions_file_path, 'r') as f:
+        pet_clusters_descriptions: dict[str, dict[str, str]] = json.loads(f.read())
+
+        section: str = "DOG_SUMMARIES" if species else "CAT_SUMMARIES"
+
+        descriptions: list[str] = []
+
+        for i in pet_clusters:
+            descriptions.append(pet_clusters_descriptions[section][f"CLUSTER_{str(i)}"])
+
+        return descriptions

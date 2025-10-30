@@ -60,9 +60,9 @@ def predict_compatible_clusters(model_type: str, data: list) -> ndarray:
 
     model = load_knn_model(model_type)
 
-    predictions: ndarray = model.predict_proba(data_to_predict)
+    probabilities: ndarray = model.predict_proba(data_to_predict)
 
-    return predictions
+    return probabilities
 
 def sort_clusters_by_probability(probabilities: list[float], clusters: list[int]) -> tuple[list[float], list[int]]:
     """

@@ -139,3 +139,17 @@ class PetReadWithPetLabel(PetRead):
     """
 
     pet_label: int | None = None
+
+class CompatiblePetClusters(SQLModel):
+    """
+    Modelo de respuesta para la predicción de grupos compatibles entre un usuario y mascotas.
+
+    Attributes:
+        pet_clusters (list[int]): Lista de identificadores de cluster o etiquetas de grupos compatibles.
+        probabilities (list[float]): Lista de probabilidades o puntuaciones asociadas a cada elemento en `pet_clusters`.
+        clusters_descriptions (list[str]): Lista con el resumen de los clústeres asociados a cada elemento en `pet_clusters`.            
+    """
+
+    pet_clusters: list[int]
+    probabilities: list[float]
+    clusters_descriptions: list[str]
