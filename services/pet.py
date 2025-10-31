@@ -4,11 +4,12 @@ from services.image_services import upload_image_to_supabase
 from services.ml.kmeans_service import predict_cluster
 from services.ml.scaler_service import scale_data
 from services.ml.decission_tree_service import predict_compatible_cluster
-from utils.pet import preprocess_pet_data_for_clustering, can_clusterize_pet
-from utils.user import can_clusterize as can_clusterize_user, USER_CLUSTER_FEATURES, USER_BOOL_FEATURES, USER_FEAUTURES_TO_SCALE, transform_bool_cluster_features_to_int as transform_bool_user
+from utils.pet import preprocess_pet_data_for_clustering, can_clusterize as can_clusterize_pet
+from utils.user import can_clusterize as can_clusterize_user, ORDERED_USER_CLUSTER_FEATURES, USER_BOOL_FEATURES, USER_FEAUTURES_TO_SCALE, transform_bool_cluster_features_to_int as transform_bool_user
 from fastapi import HTTPException, status
 from numpy import ndarray
 from postgrest.base_request_builder import APIResponse
+from storage3.exceptions import StorageApiError
 
 def create_pet(
         data: dict[str, Any],
@@ -155,7 +156,7 @@ def get_recommended_pets(supabase: Client, id_user: str, page: int | None = None
 
     user_profile_response = (
         supabase.table("users_profiles")
-        .select(", ".join(USER_CLUSTER_FEATURES + ["preferred_species"]))
+        .select(", ".join(ORDERED_USER_CLUSTER_FEATURES + ["preferred_species"]))
         .eq("id_user", id_user)
         .execute()
     )
@@ -330,6 +331,14 @@ def get_pets_by_pet_cluster(supabase: Client, id_user: str, cluster: int, page: 
     pets: list[dict[str, Any]] = pets_query_response.data
 
     for pet in pets:
-        pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=3600)
+        if pet["photo_url"]:
+            try:
+                pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(
+                    path=pet["photo_url"],
+                    expires_in=3600
+                )["signedURL"]
+
+            except StorageApiError:
+                pet["photo_url"] = None
 
     return pets

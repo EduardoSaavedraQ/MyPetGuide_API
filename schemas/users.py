@@ -71,7 +71,7 @@ class UserRead(UserPublicInfo):
     house_backyard_size: int | None = None
     family_size: int | None = None
     age: int | None = None
-    activity_level = int | None = None
+    activity_level: int | None = None
     has_kids: bool | None = None
     has_neighbors: bool | None = None
     available_time_per_day: int | None = None
@@ -122,7 +122,9 @@ class UserProfileCreate(SQLModel):
 
     house_size: int | None = Field(default=None, ge=40, description="Tamaño de la casa en metros cuadrados (mínimo 40 m²)")
     house_backyard_size: int | None = Field(default=None, ge=0, description="Tamaño del patio trasero/cochera/terraza en metros cuadrados (mínimo 0 m²)")
-    family_size: int | None = Field(default=None, ge=1)
+    family_size: int | None = Field(default=None, ge=1, description="Cantidad de miembros en la familia del usuario")
+    age: int | None = Field(default=None, ge=18, description="Edad del usuario o el responsable directo de la mascota")
+    activity_level: int | None = Field(default=None, ge=1, le=3, description="Nivel de activiad del usuario o el responsable directo de la mascota")
     has_kids: bool | None = Field(default=None, description="Indica si hay niños en la familia")
     has_neighbors: bool | None = Field(default=None, description="Indica si hay vecinos cerca")
     available_time_per_day: int | None = Field(default=None, gt=0, le=24, description="Tiempo disponible al día para cuidar a la mascota (en horas, máximo 24)")
