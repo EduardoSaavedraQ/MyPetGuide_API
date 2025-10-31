@@ -70,6 +70,8 @@ class UserRead(UserPublicInfo):
     house_size: int | None = None
     house_backyard_size: int | None = None
     family_size: int | None = None
+    age: int | None = None
+    activity_level = int | None = None
     has_kids: bool | None = None
     has_neighbors: bool | None = None
     available_time_per_day: int | None = None
