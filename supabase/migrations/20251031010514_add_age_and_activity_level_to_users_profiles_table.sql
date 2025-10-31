@@ -1,0 +1,3 @@
+ALTER TABLE IF EXISTS users_profiles
+    ADD COLUMN IF NOT EXISTS age SMALLINT CHECK (age >= 18),
+    ADD COLUMN IF NOT EXISTS activity_level SMALLINT CHECK (activity_level BETWEEN 1 AND 3);
