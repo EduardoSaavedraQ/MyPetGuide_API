@@ -4,9 +4,11 @@ from services.image_services import upload_image_to_supabase
 from services.ml.kmeans_service import predict_cluster
 from services.ml.scaler_service import scale_data
 from services.ml.decission_tree_service import predict_compatible_cluster
-from utils.pet import PET_FEATURES_TO_SCALE, PET_BOOL_FEATURES, can_clusterize as can_clusterize_pet, transform_bool_cluster_features_to_int as transform_bool_pet
+from utils.pet import preprocess_pet_data_for_clustering, can_clusterize_pet
 from utils.user import can_clusterize as can_clusterize_user, USER_CLUSTER_FEATURES, USER_BOOL_FEATURES, USER_FEAUTURES_TO_SCALE, transform_bool_cluster_features_to_int as transform_bool_user
 from fastapi import HTTPException, status
+from numpy import ndarray
+from postgrest.base_request_builder import APIResponse
 
 def create_pet(
         data: dict[str, Any],
@@ -52,12 +54,8 @@ def create_pet(
     data["id_owner"] = id_user
 
     if can_clusterize_pet(data) and data.get("species") is not None:
-        data = transform_bool_pet(data)
-        bool_features = [data[field] for field in PET_BOOL_FEATURES]
-        features_to_scale = [data[field] for field in PET_FEATURES_TO_SCALE]
-        scaled_data = scale_data("pet", features_to_scale)
-        features = scaled_data[0] + bool_features
-        cluster = predict_cluster("cat" if not data["species"] else "dog", features)
+        preprocessed_pet_data: list = preprocess_pet_data_for_clustering(data)
+        cluster = predict_cluster("cat" if not data["species"] else "dog", preprocessed_pet_data)
         data["pet_label"] = cluster[0]
 
     data.pop("species")
@@ -214,6 +212,124 @@ def get_recommended_pets(supabase: Client, id_user: str, page: int | None = None
 
     for pet in response.data:
         if pet["photo_url"] is not None:
-            pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=60)
+            pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=3600)
 
     return results
+
+def get_compatible_pet_clusters(user_features: dict[str, int | bool]) -> dict[str, list[int | float | str]]:
+    """
+    Devuelve un diccionario que contiene listas ordenadas con las clases del KNN correspondiente a la especie preferida,
+    sus porcentajes de probabilidad y sus respectivas descripciones. El orden es descendente según el porcentaje de probabilidad.
+
+    Args:
+        user_features (dict[str, list[int|float|str]]): Diccionario con las características del usuario.
+
+    Raises:
+        HTTPException (400): Si faltan campos o valores en las características del usuario necesarios para el modelo de KNN.
+
+    Returns:
+        dict[str, list[int | float | str]]: Diccionario con los campos `pet_clusters`, `probabilities` y `clusters_descriptions`.
+    """
+
+    from utils.user import can_predict, preprocess_user_data_for_prediction
+    from utils.pet import load_pet_clusters_descriptions
+    from services.ml.knn_service import predict_compatible_clusters, get_knn_classes, sort_clusters_by_probability
+
+    if not can_predict(user_features):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tu perfil de usuario no tiene suficientes datos para recomendar mascotas."
+        )    
+
+    preprocessed_data: list = preprocess_user_data_for_prediction(preprocessed_data)
+
+    preferred_species: bool = user_features["preferred_species"]
+
+    knn_type: str = "user_to_dogs" if preferred_species else "user_to_cats"
+
+    pet_classes: list = get_knn_classes(knn_type)
+
+    probabilities: ndarray = predict_compatible_clusters(knn_type)
+
+    sorted_probabilities, sorted_classes = sort_clusters_by_probability(probabilities=probabilities, clusters=pet_classes)
+
+    while sorted_probabilities[-1] == 0:
+        sorted_probabilities.pop()
+        sorted_classes.pop()
+
+    clusters_descriptions: list[str] = load_pet_clusters_descriptions(preferred_species, sorted_classes)
+
+    compatible_pet_clusters: dict[str, list[int | float | str]] = {
+        "pet_clusters": sorted_classes,
+        "probabilities": sorted_probabilities,
+        "clusters_descriptions" : clusters_descriptions
+    }
+
+    return compatible_pet_clusters
+
+def get_pets_by_pet_cluster(supabase: Client, id_user: str, cluster: int, page: int | None = None) -> list[dict[str, Any]]:
+    """
+    Devuelve una lista con las mascotas del clúster especificado, según la especie preferida del usuario.
+
+    Args:
+        supabase (Client): Cliente de Supabase mediante el cual se realizarán las consultas a la base de datos alojada en
+                            el servidor de supabase.
+        id_user (str): El UUID del usuario para el cual se devuelven las mascotas. Se utiliza para obtener la especie
+                        preferida y para evitar que se le devuelvan sus propias mascotas (si las hay).
+        cluster (int): El número de clúster perteneciente a las mascotas que se quieren obtener.
+        page (int | None): El número de página para la paginación de los resultados.
+
+    Raises:
+        HTTPException (404): Si no se encuentra el perfil del usuario.
+        HTTPException (400): Si el perfil del usuario no tiene suficientes datos
+                            para generar una recomendación, o si el número de
+                            página es inválido.
+
+    Returns:
+        list[dict[str, Any]]: Una lista con los perfiles de las mascotas compatibles.
+    """
+
+    user_query_response: APIResponse = (
+        supabase.table("users_profiles")
+        .select("preferred_species")
+        .eq("id_user", id_user)
+        .execute()
+    )
+
+    if not user_query_response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El usuario especificado no cuanta con un perfil"
+        )
+
+    preferred_species: bool = user_query_response.data[0]["preferred_species"]
+
+    pets_query = (
+        supabase.table("pets")
+        .select("*, species:id_breed1(species), main_breed:id_breed1!inner(*), secondary_breed:id_breed2(*)")
+        .eq("in_adoption_process", True)
+        .neq("id_owner", id_user)
+        .eq("pet_label", cluster)
+        .eq("main_breed.species", preferred_species)
+    )
+
+    if page is not None:
+        if page <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El número de página debe ser mayor a 0."
+            )
+        
+        limit = 15
+        offset = (page - 1) * limit
+
+        pets_query = pets_query.range(offset, offset + limit - 1)
+
+    pets_query_response: APIResponse = pets_query.execute()
+
+    pets: list[dict[str, Any]] = pets_query_response.data
+
+    for pet in pets:
+        pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=3600)
+
+    return pets
