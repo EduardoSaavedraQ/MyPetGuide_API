@@ -161,3 +161,46 @@ def get_compatible_pet_clusters(
     user_features: dict = response.data[0]
 
     return pet.get_compatible_pet_clusters(user_features)
+
+@router.get("/pets_by_cluster", responde_model=List[PetReadWithPetLabel])
+def get_pets_by_pet_cluster(
+    cluster: int,
+    page: int | None = None,
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(auth.get_current_active_user)
+
+) -> list[dict[str, Any]]:
+    """
+    Devuelve mascotas pertenecientes a un cluster específico.
+
+    Recupera las mascotas asignadas al cluster indicado (campo `pet_label`)
+    excluyendo las mascotas cuyo dueño sea el usuario que realiza la petición.
+    Soporta paginación mediante el parámetro `page` (1-based). La consulta y
+    la lógica de negocio se delegan a `services.pet.get_pets_by_pet_cluster`.
+
+    Args:
+        cluster (int): Identificador del cluster cuya lista de mascotas se solicita.
+                        Es un parámetro obligatorio; FastAPI validará su presencia y tipo.
+        page (int | None): Página de resultados (opcional). Si se proporciona,
+                            la función de servicio aplicará el paginado.
+        supabase (Client): Cliente de Supabase inyectado por dependencia.
+        current_user (dict[str, Any]): Payload del JWT del usuario autenticado.
+
+    Raises:
+        HTTPException 401/403: Producidas por la dependencia de autenticación si el usuario no está autorizado.
+        HTTPException 400: Posible respuesta si `page` es inválido (delegado al servicio).
+        HTTPException 404: Si no se encuentran mascotas (según implementación del servicio).
+
+    Returns:
+        list[dict[str, Any]] (response_model=List[PetReadWithPetLabel]):
+            Lista de objetos que representan mascotas con su etiqueta de cluster.
+            El esquema de cada elemento está definido por `PetReadWithPetLabel`.
+    """
+    pets: list[dict[str, Any]] = pet.get_pets_by_pet_cluster(
+        supabase=supabase,
+        id_user=current_user["sub"],
+        cluster=cluster,
+        page=page
+    )
+
+    return pets
