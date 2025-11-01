@@ -116,6 +116,7 @@ async def create_user(
         )
 
         created_user["jwt"] = sign_up_reponse.session.access_token
+        created_user["refresh_token"] = sign_up_reponse.session.refresh_token
 
         return created_user
 

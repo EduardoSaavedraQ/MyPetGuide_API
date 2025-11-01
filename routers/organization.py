@@ -117,6 +117,7 @@ async def create_organization(
         )
 
         created_organization["jwt"] = sign_up_reponse.session.access_token
+        created_organization["refresh_token"] = sign_up_reponse.session.refresh_token
 
         return created_organization
 

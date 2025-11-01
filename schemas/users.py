@@ -95,10 +95,13 @@ class UserCreated(UserRead):
 
     Attributes:
         jwt (str | None): Token de acceso JWT para la sesión del nuevo usuario.
-                        Los demás atributos son heredados de `UserRead`.
+        refresh_token: Token que permite refrescar la sesión del usuario.
+
+    Los demás atributos son heredados de `UserRead`.
     """
 
-    jwt: str | None = None
+    jwt: str
+    refresh_token: str
 
 class UserProfileCreate(SQLModel):
     """Modelo para crear o actualizar el perfil de compatibilidad de un usuario.

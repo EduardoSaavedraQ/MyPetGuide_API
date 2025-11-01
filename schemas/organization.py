@@ -78,9 +78,11 @@ class OrganizationCreated(OrganizationRead):
     cliente pueda autenticar sesiones futuras de inmediato.
 
     Attributes:
-        jwt (str | None): Token de acceso JWT para la sesión del nuevo usuario.
-        
+        jwt (str): Token de acceso JWT para la sesión del nuevo usuario.
+        refresh_token: Token que permite refrescar la sesión del usuario.
+
     Los demás atributos son heredados de `OrganizationRead`.
     """
 
-    jwt: str | None = None
+    jwt: str
+    refresh_token: str
