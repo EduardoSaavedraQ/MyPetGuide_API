@@ -162,7 +162,7 @@ def get_compatible_pet_clusters(
 
     return pet.get_compatible_pet_clusters(user_features)
 
-@router.get("/pets_by_cluster", response_model=List[PetReadWithPetLabel])
+@router.get("/pets-by-cluster", response_model=List[PetReadWithPetLabel])
 def get_pets_by_pet_cluster(
     cluster: int,
     page: int | None = None,
