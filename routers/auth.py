@@ -31,7 +31,7 @@ def login(credentials: LoginForm, supabase: Client = Depends(get_supabase_client
 
     return auth.login(email=credentials.email, password=credentials.password, supabase=supabase)
 
-@router.get("/role/")
+@router.get("/role")
 def get_user_role(
     current_user: dict[str, Any] = Depends(auth.get_current_active_user),
     supabase: Client = Depends(get_supabase_admin_client)

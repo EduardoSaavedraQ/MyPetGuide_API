@@ -153,3 +153,8 @@ class CompatiblePetClusters(SQLModel):
     pet_clusters: list[int]
     probabilities: list[float]
     clusters_descriptions: list[str]
+
+class PetChatInfo(SQLModel):
+    id_pet: int
+    pet_name: str
+    photo_url: str | None = None
