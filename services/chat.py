@@ -1,12 +1,29 @@
 from supabase import Client
 from postgrest.base_request_builder import APIResponse
+from typing import Any
 
 def get_user_chats(
     supabase: Client,
     user_identifier: str | None = None,
     incomming: bool = True,
     finished: bool = False
-) -> list:
+) -> list[dict[int | dict[str, Any]]]:
+
+    """Obtiene los chats del usuario correspondientes a las solicitudes de adopción enviadas o recibidas.
+
+    Args:
+        supabase (Client): Cliente de Supabase mediante el cual se realizan las consultas a la base
+                            de datos y se obtiene la urls firmadas para las fotos de perfil.
+        user_identifier (str): UUID del usuario cuyos chats se quieren obtener.
+        incomming (bool): Determine si los chats deben corresponder a las solicitudes recibidas (True)
+                            o enviadas (False). Valor por defecto: True.
+        finished (bool): Permite filtrar por chats finalizados (True) o sin finalizar (False). Valor por
+                            defecto: False.
+
+    Returns:
+        list[dict,int|dict[str,Any]]: Lista de diccionarios que contienen la información de los chats
+                                            solicitados, la mascota solicitada y el otro usuario participante.
+    """
 
     chats_response: APIResponse = (
         supabase.table("chat_rooms")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from supabase import Client
 from postgrest.base_request_builder import APIResponse
 from utils.supabase import get_supabase_admin_client
@@ -15,6 +15,21 @@ async def create_chat_room(
     supabase: Client = Depends(get_supabase_admin_client),
     current_user: dict[str, Any] = Depends(get_current_active_user)
 ) -> dict[str, int | str]:
+    """Crea una nueva sala de chat en la base de datos.
+
+    Utiliza los identificadores de la mascota que se quiere adoptar, el que solicita adoptarla
+    y el del dueño actual de la mascota.
+
+    Args:
+        identifiers (ChatCreate): Contendor y validador para los ids de la mascota y el dueño actual
+                                    de ésta.
+        supabase (Client): Cliente de Supabase mediante el cual se crea el registro en la base de datos.
+        current_user (dict[str, int | str]): Diccionario de los datos del usuario que solicita adoptar
+                                            la mascota. Obtenido del JWT contenido en la cabecera Authorization.
+
+    Returns:
+        dict[str,int|str]: Diccionario con los datos registrados en la tabla `chat_room` en la base de datos.
+    """
 
     response: APIResponse = (
         supabase.table("chat_rooms")
@@ -33,7 +48,22 @@ async def get_incomming_chat_rooms_for_user(
     finished: bool = False,
     supabase: Client = Depends(get_supabase_admin_client),
     current_user: dict[str, Any] = Depends(get_current_active_user)
-) -> list[dict, int | dict[str, Any]]:
+) -> list[dict[int | dict[str, Any]]]:
+    """Obtiene las salas de chat donde el usuario actual es el dueño de la mascota.
+
+    Recupera todas las salas de chat donde el usuario autenticado es el dueño de la mascota
+    que otro usuario quiere adoptar. Los chats pueden filtrarse por su estado (finalizados o activos).
+
+    Args:
+        finished (bool, optional): Filtro para obtener chats finalizados (True) o activos (False).
+                                    Por defecto es False.
+        supabase (Client): Cliente de Supabase para consultar la base de datos.
+        current_user (dict[str, Any]): Datos del usuario autenticado obtenidos del JWT.
+
+    Returns:
+        list[dict[int | dict[str, Any]]]: Lista de salas de chat con la información de la mascota
+                                            y del usuario solicitante (requester).
+    """
 
     chats: list = get_user_chats(
         supabase=supabase,
@@ -49,7 +79,22 @@ async def get_outcomming_chat_rooms_for_user(
     finished: bool = False,
     supabase: Client = Depends(get_supabase_admin_client),
     current_user: dict[str, Any] = Depends(get_current_active_user)
-) -> list[dict, int | dict[str, Any]]:
+) -> list[dict[int | dict[str, Any]]]:
+    """Obtiene las salas de chat donde el usuario actual es el solicitante.
+
+    Recupera todas las salas de chat donde el usuario autenticado es quien solicita
+    adoptar una mascota. Los chats pueden filtrarse por su estado (finalizados o activos).
+
+    Args:
+        finished (bool, optional): Filtro para obtener chats finalizados (True) o activos (False).
+                                    Por defecto es False.
+        supabase (Client): Cliente de Supabase para consultar la base de datos.
+        current_user (dict[str, Any]): Datos del usuario autenticado obtenidos del JWT.
+
+    Returns:
+        list[dict[int | dict[str, Any]]]: Lista de salas de chat con la información de la mascota
+                                            y del dueño actual de la mascota (owner).
+    """
 
     chats: list = get_user_chats(
         supabase=supabase,
