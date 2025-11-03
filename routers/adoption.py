@@ -6,7 +6,7 @@ from utils.supabase import get_supabase_admin_client
 from schemas.adoption import AdoptionCreate
 from typing import Any
 
-router = APIRouter(prefix="adoption/")
+router = APIRouter(prefix="/adoption")
 
 @router.post("/transfer-pet-ownership")
 async def transfer_pet_ownership(
@@ -55,9 +55,9 @@ async def transfer_pet_ownership(
         )
 
     requester_response: APIResponse = (
-        supabase.table("auth.users")
-        .select("id")
-        .eq("id", adoption_data.id_requester)
+        supabase.table("users_profiles")
+        .select("id_user")
+        .eq("id_user", adoption_data.id_requester)
         .limit(1)
         .execute()
     )
@@ -73,9 +73,11 @@ async def transfer_pet_ownership(
             "transfer_pet_ownership",
             {
                 "pet_id": adoption_data.id_pet,
-                "new_owner": adoption_data.id_requester
+                "old_owner": current_user["sub"],
+                "new_owner": adoption_data.id_requester,
             }
-        )
+        ).execute()
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
