@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import Client
 from postgrest.base_request_builder import APIResponse
 from utils.supabase import get_supabase_admin_client
 from services.auth import get_current_active_user
 from services.chat import get_user_chats
-from schemas.chat import ChatCreate, ChatCreated, ChatReadIncomming, ChatReadOutcomming
+from schemas.chat import ChatCreate, ChatCreated, ChatReadIncomming, ChatReadOutcomming, ChatRead
 from typing import Any, List
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -104,3 +104,31 @@ async def get_outcomming_chat_rooms_for_user(
     )
 
     return chats
+
+@router.patch("/finish/{id_chat}", response_model=ChatCreated)
+async def finish_chat_room(
+    id_chat: int,
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(get_current_active_user)
+):
+    """
+    Marca una sala de chat como finalizada si el usuario autenticado es requester u owner.
+
+    - id_chat (int): id de la sala a finalizar.
+    - Acceso permitido solo si current_user["sub"] coincide con id_requester o id_owner.
+    - Retorna el registro actualizado (modelo ChatCreated). Lanza 404 si no se encontró o no tiene acceso.
+    """
+    user_id = current_user["sub"]
+
+    chat_finished_response: APIResponse = (
+        supabase.table("chat_rooms")
+        .update({"finished": True})
+        .eq("id_chat", id_chat)
+        .or_(f"id_requester.eq.{user_id},id_owner.eq.{user_id}")
+        .execute()
+    )
+
+    if not chat_finished_response.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found or access denied")
+
+    return chat_finished_response.data[0]
