@@ -123,7 +123,7 @@ async def finish_chat_room(
     chat_finished_response: APIResponse = (
         supabase.table("chat_rooms")
         .update({"finished": True})
-        .eq("id_chat", id_chat)
+        .eq("id_room", id_chat)
         .or_(f"id_requester.eq.{user_id},id_owner.eq.{user_id}")
         .execute()
     )
