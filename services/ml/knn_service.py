@@ -84,7 +84,7 @@ def sort_clusters_by_probability(probabilities: list[float], clusters: list[int]
     """
 
     if len(probabilities) != len(clusters):
-        raise ValueError("Las listas de probabilidades y clusters deben tener la misma longitud")
+        raise ValueError(f"Las listas de probabilidades y clusters deben tener la misma longitud.\n{probabilities=}\n{clusters=}")
         
     # Enumerar para mantener el orden original en caso de empate
     indexed_pairs = list(enumerate(zip(probabilities, clusters)))

@@ -252,7 +252,7 @@ def get_compatible_pet_clusters(user_features: dict[str, int | bool]) -> dict[st
 
     probabilities: ndarray = predict_compatible_clusters(knn_type, preprocessed_data)
 
-    sorted_probabilities, sorted_classes = sort_clusters_by_probability(probabilities=probabilities, clusters=pet_classes)
+    sorted_probabilities, sorted_classes = sort_clusters_by_probability(probabilities=probabilities.tolist()[0], clusters=pet_classes)
 
     while sorted_probabilities[-1] == 0:
         sorted_probabilities.pop()
