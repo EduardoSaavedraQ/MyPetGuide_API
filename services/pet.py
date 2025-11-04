@@ -242,7 +242,7 @@ def get_compatible_pet_clusters(user_features: dict[str, int | bool]) -> dict[st
             detail="Tu perfil de usuario no tiene suficientes datos para recomendar mascotas."
         )    
 
-    preprocessed_data: list = preprocess_user_data_for_prediction(preprocessed_data)
+    preprocessed_data: list = preprocess_user_data_for_prediction(user_features)
 
     preferred_species: bool = user_features["preferred_species"]
 
@@ -250,7 +250,7 @@ def get_compatible_pet_clusters(user_features: dict[str, int | bool]) -> dict[st
 
     pet_classes: list = get_knn_classes(knn_type)
 
-    probabilities: ndarray = predict_compatible_clusters(knn_type)
+    probabilities: ndarray = predict_compatible_clusters(knn_type, preprocessed_data)
 
     sorted_probabilities, sorted_classes = sort_clusters_by_probability(probabilities=probabilities, clusters=pet_classes)
 
