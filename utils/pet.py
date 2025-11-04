@@ -83,7 +83,7 @@ def preprocess_pet_data_for_clustering(pet_data: dict) -> list:
 
     df = pd.DataFrame([feature_values], columns=ORDERED_PET_CLUSTER_FEATURES)
 
-    df["age"] = age_scaler.transform(df[["age"]])
+    df["age"] = age_scaler.transform(df[["age"]].to_numpy())
 
     df[PET_BOOL_FEATURES] = df[PET_BOOL_FEATURES].astype(int)
 
