@@ -1,9 +1,11 @@
+from fastapi import HTTPException, status
 from sqlmodel import UUID
 from storage3.types import UploadResponse
 from schemas.users import UserRead
 from services.image_services import upload_image_to_supabase
 from supabase import Client
 from postgrest.base_request_builder import APIResponse
+from storage3.exceptions import StorageApiError
 from services.ml.kmeans_service import predict_cluster
 from utils.user import USER_FEAUTURES_TO_SCALE, USER_BOOL_FEATURES, can_clusterize, transform_bool_cluster_features_to_int
 from services.ml.scaler_service import scale_data
@@ -149,16 +151,29 @@ def get_user_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
                         las 'photo_url' son URLs firmadas temporalmente.
     """
 
-    user_query_response: dict = (
+    user_query_response: APIResponse = (
         supabase.table("users_profiles")
         .select("*")
         .eq("id_user", id_user)
         .execute()
     )
 
-    user_data: dict = user_query_response.data[0] if user_query_response.data else dict()
+    if not user_query_response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Los datos del usuario no fueron encontrados."
+        )
 
-    user_data["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=user_data["photo_url"], expires_in=3600)
+    user_data: dict = user_query_response.data[0]
+
+    if user_data["photo_url"]:
+        try:
+            user_data["photo_url"] = supabase.storage.from_("avatars").create_signed_url(
+                path=user_data["photo_url"],
+                expires_in=3600
+            )
+        except StorageApiError:
+            user_data["photo_url"] = None
 
     pet_query_response = (
         supabase.table("pets")
@@ -171,7 +186,13 @@ def get_user_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
 
     for pet in user_pets:
         if pet["photo_url"] is not None:
-            pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=3600)
+            try:
+                pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(
+                    path=pet["photo_url"],
+                    expires_in=3600
+                )
+            except StorageApiError:
+                pet["photo_url"] = None
 
     return {
         "user": user_data,

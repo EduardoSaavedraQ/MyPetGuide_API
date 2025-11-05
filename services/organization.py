@@ -1,5 +1,7 @@
+from fastapi import HTTPException, status
 from sqlmodel import UUID
 from storage3.types import UploadResponse
+from storage3.exceptions import StorageApiError
 from services.image_services import upload_image_to_supabase
 from supabase import Client
 from postgrest.base_request_builder import APIResponse
@@ -73,14 +75,20 @@ def get_organization_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
                         Las `photo_url` de las mascotas son URLs firmadas temporalmente.
     """
 
-    organization_query_response: dict = (
+    organization_query_response: APIResponse = (
         supabase.table("organizations_profiles")
         .select("*")
         .eq("id_user", id_user)
         .execute()
     )
 
-    organization_data: dict = organization_query_response.data[0] if organization_query_response.data else dict()
+    if not organization_query_response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Los datos de la organización no fueron encontrados."
+        )
+
+    organization_data: dict = organization_query_response.data[0]
 
     pet_query_response = (
         supabase.table("pets")
@@ -93,7 +101,13 @@ def get_organization_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
 
     for pet in organization_pets:
         if pet["photo_url"] is not None:
-            pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=3600)
+            try:
+                pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(
+                    path=pet["photo_url"],
+                    expires_in=3600
+                )
+            except StorageApiError:
+                pet["photo_url"] = None
 
     return {
         "organization": organization_data,
