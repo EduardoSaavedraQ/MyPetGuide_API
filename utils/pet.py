@@ -122,3 +122,31 @@ def load_pet_clusters_descriptions(species: bool, pet_clusters: list[str | int])
             descriptions.append(pet_clusters_descriptions[section][f"CLUSTER_{str(i)}"])
 
         return descriptions
+
+def load_pet_clusters_titles(species: bool, pet_clusters: list[str | int]) -> list[str]:
+    """Obtiene los titulos de los clúesteres de mascotas especificados.
+
+    Args:
+        species (bool): True para perro y False para gato.
+        pet_clusters (list[str|int]): Lista de identificadores de los clústeres.
+
+    Returns:
+        list[str]: La lista de los títulos de los clústeres especificados.
+    """
+
+    import json
+    import os
+
+    pet_clusters_titles_file_path: str = os.path.join(os.path.dirname(__file__), "../pet_cluster_titles.json")
+
+    with open(pet_clusters_titles_file_path, 'r') as f:
+        pet_clusters_titles: dict[str, dict[str, str]] = json.loads(f.read())
+
+        section: str = "DOG_TITLES" if species else "CAT_TITLES"
+
+        titles: list[str] = []
+
+        for i in pet_clusters:
+            titles.append(pet_clusters_titles[section][f"CLUSTER_{str(i)}"])
+
+        return titles

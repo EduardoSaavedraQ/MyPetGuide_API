@@ -147,12 +147,14 @@ class CompatiblePetClusters(SQLModel):
     Attributes:
         pet_clusters (list[int]): Lista de identificadores de cluster o etiquetas de grupos compatibles.
         probabilities (list[float]): Lista de probabilidades o puntuaciones asociadas a cada elemento en `pet_clusters`.
-        clusters_descriptions (list[str]): Lista con el resumen de los clústeres asociados a cada elemento en `pet_clusters`.            
+        clusters_descriptions (list[str]): Lista con el resumen de los clústeres asociados a cada elemento en `pet_clusters`.
+        clusters_titles (list[str]): Lista de los títulos de los clústeres asociados a cada elemento en `pet_clusters`.
     """
 
     pet_clusters: list[int]
     probabilities: list[float]
     clusters_descriptions: list[str]
+    clusters_titles: list[str]
 
 class PetChatInfo(SQLModel):
     id_pet: int

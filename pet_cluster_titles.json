@@ -1,0 +1,15 @@
+{
+    "DOG_TITLES": {
+        "CLUSTER_0": "El Adulto Balanceado",
+        "CLUSTER_1": "El Compañero Fácil y Económico",
+        "CLUSTER_2": "El Gigante Noble (Senior)",
+        "CLUSTER_3": "El Cachorro Juguetón y Sociable",
+        "CLUSTER_4": "El Cachorro de Alta Energía (Extremos)"
+    },
+    "CAT_TITLES": {
+        "CLUSTER_0": "La Gata Adulta Independiente (Fácil Cuidado)",
+        "CLUSTER_1": "El Gato Senior Cariñoso (Cuidados Especiales)",
+        "CLUSTER_2": "La Gata de Alto Mantenimiento (Pelo Especial)",
+        "CLUSTER_3": "La Gatita Energética (Cachorra)"
+    }
+}

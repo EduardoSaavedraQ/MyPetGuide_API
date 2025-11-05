@@ -233,7 +233,7 @@ def get_compatible_pet_clusters(user_features: dict[str, int | bool]) -> dict[st
     """
 
     from utils.user import can_predict, preprocess_user_data_for_prediction
-    from utils.pet import load_pet_clusters_descriptions
+    from utils.pet import load_pet_clusters_descriptions, load_pet_clusters_titles
     from services.ml.knn_service import predict_compatible_clusters, get_knn_classes, sort_clusters_by_probability
 
     if not can_predict(user_features):
@@ -259,11 +259,13 @@ def get_compatible_pet_clusters(user_features: dict[str, int | bool]) -> dict[st
         sorted_classes.pop()
 
     clusters_descriptions: list[str] = load_pet_clusters_descriptions(preferred_species, sorted_classes)
+    clusters_titles: list[str] = load_pet_clusters_titles(preferred_species, sorted_classes)
 
     compatible_pet_clusters: dict[str, list[int | float | str]] = {
         "pet_clusters": sorted_classes,
         "probabilities": sorted_probabilities,
-        "clusters_descriptions" : clusters_descriptions
+        "clusters_descriptions" : clusters_descriptions,
+        "clusters_titles": clusters_titles
     }
 
     return compatible_pet_clusters

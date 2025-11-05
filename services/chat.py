@@ -42,7 +42,7 @@ def get_user_chats(
                     .create_signed_url(
                         path=chat["pet"]["photo_url"],
                         expires_in=3600
-                    )
+                    )["signedUrl"]
                 )
 
             except Exception:
@@ -71,7 +71,7 @@ def get_user_chats(
                         create_signed_url(
                             path=profiles_response.data[0]["photo_url"],
                             expires_in=3600
-                        )
+                        )["signedUrl"]
                     )
 
                 except Exception:
