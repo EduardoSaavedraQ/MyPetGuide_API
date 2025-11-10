@@ -3,11 +3,11 @@ from pydantic import PositiveInt, model_validator
 from pydantic_core import PydanticCustomError
 from schemas.breed import BreedRead
 
-class PetCreate(SQLModel):
-    """Modelo para validar los datos al registrar una nueva mascota.
+class PetUpdate(SQLModel):
+    """Modelo para validar los datos al actualizar una mascota.
 
-    Esta clase define todos los campos necesarios para crear un nuevo registro de
-    mascota en el sistema. Incluye desde información básica como nombre y raza, hasta
+    Esta clase define todos los campos necesarios para actualizar el registro de
+    una mascota en el sistema. Incluye desde información básica como nombre y raza, hasta
     detalles médicos y de comportamiento. Se utiliza para validar los datos de entrada
     en el endpoint de creación.
 
@@ -31,12 +31,10 @@ class PetCreate(SQLModel):
         care_level_cost (PositiveInt | None): Nivel de costo de cuidado (1-3).
         care_difficulty (PositiveInt | None): Nivel de dificultad de cuidado (1-3).
         pet_size (PositiveInt | None): Tamaño de la mascota (1-4).
-        species (bool): Especie (True para perro, False para gato).
 
     Raises:
         PydanticCustomError: Se lanza si `id_breed1` y `id_breed2` son idénticos.
     """
-
     id_breed1: PositiveInt = Field(..., description="ID de la raza principal de la mascota")
     id_breed2: PositiveInt | None = Field(default=None, description="ID de la raza secundaria de la mascota (opcional)")
     pet_name: str = Field(..., min_length=1, max_length=50, description="Nombre de la mascota")
@@ -55,8 +53,7 @@ class PetCreate(SQLModel):
     energy_level: int | None = Field(default=None, ge=0, le=3, description="Nivel de energía de la mascota (1 a 3)")
     care_level_cost: PositiveInt | None = Field(default=None, ge=1, le=3, description="Nivel de costo de cuidado de la mascota (1 a 3)")
     care_difficulty: PositiveInt | None = Field(default=None, ge=1, le=3, description="Nivel de dificultad de cuidado de la mascota (1 a 3)")
-    pet_size: PositiveInt | None = Field(default=None, ge=1, le=4, description="Tamaño de la mascota (1 a 3)")
-    species: bool = Field(..., description="Especie de la mascota (True para perro, False para gato)")
+    pet_size: PositiveInt | None = Field(default=None, ge=1, le=4, description="Tamaño de la mascota (1 a 4)")
 
     @model_validator(mode="after")
     def check_id_breeds_are_different(self) -> "PetCreate":
@@ -66,6 +63,18 @@ class PetCreate(SQLModel):
                 "same_breed_identifier",
                 "Los identificadores de las razas no pueden ser exactamente el mismo"
             )
+
+class PetCreate(PetUpdate):
+    """Modelo para validar los datos al registrar una nueva mascota.
+
+    Esta clase es una especialización de PetUpdate que incluye un campo extra para indicar a qué
+    especie pertenece la nueva mascota que se va a registrar en el sistema.
+
+    Attributes:
+        species (bool): Especie (True para perro, False para gato).
+    """
+
+    species: bool = Field(..., description="Especie de la mascota (True para perro, False para gato)")
 
 class PetRead(SQLModel):
     """Representa el perfil público y detallado de una mascota.

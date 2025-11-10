@@ -10,6 +10,7 @@ from fastapi import HTTPException, status
 from numpy import ndarray
 from postgrest.base_request_builder import APIResponse
 from storage3.exceptions import StorageApiError
+from storage3.types import UploadResponse
 
 def create_pet(
         data: dict[str, Any],
@@ -71,7 +72,7 @@ def create_pet(
 
     response = (
         supabase.table("pets")
-        .select("*, main_breed:id_breed1!inner(*), secondary_breed:id_breed2(*)'")
+        .select("*, main_breed:id_breed1!inner(*), secondary_breed:id_breed2(*)")
         .eq("id_pet", created_pet["id_pet"])
         .execute()
     )
@@ -79,6 +80,73 @@ def create_pet(
     created_pet = response.data[0]
 
     return created_pet
+
+def update_pet_profile(
+        id_pet: int,
+        id_owner: str,
+        pet_data: dict[str, Any],
+        supabase: Client,
+        image_profile: bytes | None = None
+) -> dict[str, Any]:
+    """Actualiza el perfil de una mascota y obtiene su etiqueta correspondiente.
+
+    Args:
+        id_pet (int): Id de la mascota en la BD.
+        id_owner (str): UUID del dueño de la mascota.
+        pet_data (dict[str,Any]): Datos de la mascota que se van a actualizar.
+        supabase (Client): Cliente de Supabase para realizar consultas en la BD.
+        image_profile (bytes | None): Bytes de la foto de perfil de la mascota. Por defecto nulo.
+
+    Returns:
+        dict[str,Any]: Datos actualizados de la mascota.
+    """
+
+    if image_profile is not None:
+        upload_response: UploadResponse = upload_image_to_supabase(
+            id=id_owner, image=image_profile, bucket="avatars", path="public/pets", supabase=supabase
+        )
+
+        old_photo_url_response: APIResponse = (
+            supabase.table("pets")
+            .select("id_pet, photo_url")
+            .eq("id_pet", id_pet)
+            .execute()
+        )
+
+        old_photo_url: str | None = old_photo_url_response.data[0]["photo_url"]
+
+        pet_data["photo_url"] = upload_response.path
+
+        if old_photo_url is not None:
+            try:
+                supabase.storage.from_("avatars").remove(old_photo_url)
+            except StorageApiError:
+                pass
+
+    if can_clusterize_pet(pet_data) and pet_data.get("species") is not None:
+        preprocessed_pet_data: list = preprocess_pet_data_for_clustering(pet_data)
+        cluster = predict_cluster("cat" if not pet_data["species"] else "dog", preprocessed_pet_data)
+        pet_data["pet_label"] = cluster[0]
+
+    update_response: APIResponse = (
+        supabase.table("pets")
+        .update(pet_data)
+        .eq("id_pet", id_pet)
+        .execute()
+    )
+
+    response: APIResponse = (
+        supabase.table("pets")
+        .select("*, main_breed:id_breed1!inner(*), secondary_breed:id_breed2(*)")
+        .eq("id_pet", id_pet)
+        .execute()
+    )
+
+    updated_pet_profile: dict[str, Any] = response.data[0]
+
+    updated_pet_profile["photo_url"] =  supabase.storage.from_("avatars").create_signed_url(path=upload_response.path, expires_in=3600)["signedUrl"]
+
+    return updated_pet_profile
 
 def get_all_pets_in_adoption(supabase: Client, id_user: str, page: int | None = None) -> list[dict[str, Any]]:
     """Obtiene una lista paginada de todas las mascotas en adopción.

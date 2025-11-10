@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from supabase import Client
+from postgrest.base_request_builder import APIResponse
 from utils.supabase import get_supabase_admin_client
 from utils.image_utils import validate_image
-from schemas.pet import PetCreate, PetReadWithPetLabel
+from schemas.pet import PetCreate, PetReadWithPetLabel, PetUpdate
 from services import pet
 from services import auth
 from exceptions.image_exceptions import ImageTooLarge, InvalidImageFormat, NoImageFormatFound
@@ -66,8 +67,8 @@ async def create_pet(
 
             validate_image(image_bytes)
 
-        pet__data_dict: dict = json.loads(data)
-        pet_profile: PetCreate = PetCreate(**pet__data_dict)
+        pet_data_dict: dict = json.loads(data)
+        pet_profile: PetCreate = PetCreate(**pet_data_dict)
 
     except (json.JSONDecodeError) as e:
         raise HTTPException(
@@ -111,3 +112,99 @@ async def create_pet(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al registrar a la mascota. Error: {e}"
         )
+
+@router.put("/{id_pet}", response_model=PetReadWithPetLabel)
+async def update_pet_profile(
+    id_pet: int,
+    data: str = Form(...),
+    image: UploadFile | None = File(None),
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(auth.get_current_active_user)
+) -> dict[str, Any]:
+    """Actualiza una mascota en el sistema.
+
+    Valida que las entradas recibidas estén en el formato correcto y valida también que la mascota esté
+    asociada realmente con el usuario que realiza la solicitud.
+
+    Args:
+        id_pet (int): ID de la mascota que se desea actualizar.
+        data (str): Campo de formulario que contiene un JSON string con los
+                    datos del perfil de la mascota.
+        image (UploadFile | None): Campo de formulario opcional que contiene el
+                                archivo de imagen de la mascota.
+        supabase (Client): Dependencia para obtener el cliente de Supabase.
+        current_user (dict): Dependencia que valida el JWT y devuelve los datos
+                            del usuario autenticado.
+
+    Raises:
+        HTTPException (400): Si la cadena en el campo `data` no es un JSON válido.
+        HTTPException (401): Si el token JWT no es proporcionado o no es válido.
+        HTTPExcepcion (404): Si no se encuentra a la mascota o al dueño.
+        HTTPException (422): Si la imagen es inválida (formato, tamaño) o si los
+                            datos del JSON no pasan la validación del modelo `PetCreate`.
+
+    Returns:
+        dict[str,Any]: Datos actualizados de la mascota, incluyendo su etiqueta de clúster.
+    """
+
+    image_bytes: bytes | None = None
+
+    ##########################################
+    # Sección de validación de entradas
+    ##########################################
+    try:
+        if image is not None:
+            image_bytes = await image.read()
+
+            validate_image(image_bytes)
+
+        pet_data_dict: dict = json.loads(data)
+        pet_profile: PetUpdate = PetUpdate(**pet_data_dict)
+
+    except (json.JSONDecodeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Formato de JSON no válido: {e}"
+        )
+
+    except (InvalidImageFormat, ImageTooLarge, NoImageFormatFound) as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+    except UnidentifiedImageError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="El archivo enviado no se reconoce como imagen."
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Los datos están incompletos o no cumplen el formato esperado: {e}"
+        )
+    ##########################################
+
+    response: APIResponse = (
+        supabase.table("pets")
+        .select("id_pet, id_owner")
+        .eq("id_owner", current_user["sub"])
+        .execute()
+    )
+
+    if not response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se ha encontrado el registro de la mascota especificada."
+        )
+
+    pet_data_updated: dict[str, Any] = pet.update_pet_profile(
+        id_pet=id_pet,
+        id_owner=current_user["sub"],
+        pet_data=pet_profile.model_dump(),
+        supabase=supabase,
+        image_profile=image_bytes
+    )
+
+    return pet_data_updated
