@@ -2,12 +2,11 @@ from sqlmodel import SQLModel, Field
 from uuid import UUID
 from schemas.auth import SignUpForm
 
-class OrganizationCreate(SignUpForm):
-    """Modelo para la validación de datos al crear una nueva organización.
+class OrganizationUpdate(SQLModel):
+    """Modelo para la validación de datos al editar el perfil de una organización existente.
 
-    Hereda de `SignUpForm` para reutilizar la validación de credenciales
-    (email y contraseñas) y añade los campos específicos para el perfil de
-    una organización.
+    Este modelo define la estructura de los datos que se ven implicados en el proceso de
+    actualización del perfil de una organización.
 
     Attributes:
         organization_name (str): Nombre de la organización.
@@ -15,12 +14,6 @@ class OrganizationCreate(SignUpForm):
         admin_last_name (str): Apellido paterno del administrador.
         admin_slast_name (str | None): Apellido materno del administrador (opcional).
         biography (str | None): Biografía o descripción de la organización (opcional).
-
-    Los campos `email`, `password` y `password_confirm` son heredados de `SignUpForm`.
-
-    Raises:
-        PydanticCustomError: Se lanza si las contraseñas no coinciden (comportamiento
-                            heredado de `SignUpForm`).
     """
 
     organization_name: str = Field(..., min_length=1, max_length=255, description="Nombre de la organización")
@@ -28,6 +21,20 @@ class OrganizationCreate(SignUpForm):
     admin_last_name: str = Field(..., min_length=1, max_length=50, description="Apellido paterno del administrador de la cuenta de la organización")
     admin_slast_name: str | None = Field(default=None, min_length=1, max_length=50, description="Apellido materno del administrador de la cuenta de la organización (opcional)")
     biography: str | None = Field(default=None, min_length=1, description="Descripción o biografía de la organización (opcional)")
+
+class OrganizationCreate(SignUpForm, OrganizationUpdate):
+    """Modelo para la validación de datos al crear una nueva organización.
+
+    Hereda de `SignUpForm` para reutilizar la validación de credenciales
+    (email y contraseñas) y hereda también de `OrganizationUpdate` para reutilizar la validación de los
+    datos de perfil de organización.
+
+    Raises:
+        PydanticCustomError: Se lanza si las contraseñas no coinciden (comportamiento
+                            heredado de `SignUpForm`).
+    """
+
+    pass
 
 class OrganizationRead(SQLModel):
     """Modelo para representar los datos públicos de una organización.

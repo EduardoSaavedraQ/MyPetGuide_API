@@ -55,6 +55,75 @@ def create_organization_db(
 
     return created_organization
 
+def update_organization_profile(
+        supabase: Client,
+        id_user: str,
+        profile_data: dict[str, str | None],
+        image_profile: bytes | None = None
+) -> dict[str, str | None]:
+    """Actualiza los datos del perfil de una organización.
+
+    Actualiza el registro del perfil de una organización en la base de datos. De enviarse una foto de perfil,
+    se almacena en storage, actualiza también ese campo y elimina la vieja foto asociada.
+
+    Args:
+        supabase (Client): Cliente de Supabase con el que se realizan las operaciones de actualización en la base de datos.
+        id_user (str): El UUID de la cuenta de la organización.
+        profile_data (dic[str,str|None]): Diccionario con los datos de la organización que se actualizarán en la base de datos.
+        image_profile (bytes|None): Bytes de la foto de perfil de la organización (opcional).
+
+    Returns:
+        dict[str,str|None]: Diccionario con los datos actualizados de la organización.
+    """
+
+    response: APIResponse = (
+        supabase.table("organizations_profiles")
+        .select("id_user", "photo_url")
+        .eq("id_user", id_user)
+        .execute()
+    )
+
+    if not response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="La cuenta de la organización no existe o no tiene un perfil asociado."
+        )
+
+    organization_profile_data: dict[str, str] = response.data[0]
+
+    old_photo_url: str | None = organization_profile_data.get("photo_url", None)
+
+    if image_profile is not None:
+        upload_response: UploadResponse = upload_image_to_supabase(
+            id=id_user,
+            image=image_profile,
+            bucket="avatars",
+            path="public/organizations",
+            supabase=supabase
+        )
+
+        profile_data["photo_url"] =  upload_response.path
+
+    response = (
+        supabase.table("organizations_profiles")
+        .update(profile_data)
+        .eq("id_user", id_user)
+        .execute()
+    )
+
+    updated_organization_profile: dict[str, str] = response.data[0]
+
+    if old_photo_url is not None:
+        response = (
+            supabase.storage
+            .from_("avatars")
+            .remove([old_photo_url])
+        )
+
+    update_organization_profile["photo_url"] =  supabase.storage.from_("avatars").create_signed_url(path=upload_response.path, expires_in=3600)["signedUrl"]
+
+    return updated_organization_profile
+
 def get_organization_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
     """Recopila y estructura todos los datos de una organización y sus mascotas.
 

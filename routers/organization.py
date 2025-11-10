@@ -1,8 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends, BackgroundTasks  
-from schemas.organization import OrganizationCreate, OrganizationRead, OrganizationCreated
-from services.organization import create_organization_db, get_organization_all_data
+from schemas.organization import OrganizationCreate, OrganizationUpdate, OrganizationCreated, OrganizationRead
+from services.organization import create_organization_db, get_organization_all_data, update_organization_profile as update_organization_profile_service
+from services.auth import get_current_active_user
 from supabase import Client
 from supabase_auth import AuthResponse
+from postgrest.base_request_builder import APIResponse
 from supabase_auth.errors import AuthApiError
 from utils.supabase import get_supabase_client, get_supabase_admin_client
 from utils.image_utils import validate_image
@@ -138,6 +140,89 @@ async def create_organization(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al registrar la cuenta. Error: {e}"
         )
+
+@router.put("/profile", response_model=OrganizationRead)
+async def update_organization_profile(
+    data: str = Form(...),
+    image: UploadFile | None = File(None),
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(get_current_active_user)
+) -> dict[str, str | None]:
+    """Ruta para la actualización del perfil de la organización.
+
+    Valida los datos recibidos antes de proceder con la actualización del perfil de la organización
+    y devuelve un objeto JSON con los datos actualizados directos desde la base de datos.
+
+    Args:
+        data (str): String con formato JSON que contiene los datos de la organización que se van a actualizar.
+        image (UploadFile|None): Imagen de perfil opcional.
+        supabase (Client): Cliente de Supabase con el que se realizarán consultas a la base de datos.
+        current_use (dict[str,Any]): Datos del usuario autenticado con token JWT válido.
+
+    Errores posibles:
+    - 400 BAD REQUEST: Si el JSON enviado en `data` no tiene el formato correcto.
+    - 404 NOT FOUND: Si UUID de la cuenta del usuario no corresponde con ningún registro en la base de datos.
+    - 422 UNPROCESSABLE ENTITY: Si la imagen es inválida, demasiado grande, o no se reconoce como imagen.
+    - 422 UNPROCESSABLE ENTITY: Si los datos de la organización están incompletos o mal formateados.
+
+    Returns:
+        dict[str,str|None]: Datos actualizados del perfl de la organnización.
+    """
+
+    image_bytes: bytes | None = None
+
+    response: APIResponse = (
+        supabase.table("organizations_profiles")
+        .select("id_organization, id_user")
+        .eq("id_user", current_user["sub"])
+        .execute()
+    )
+
+    if not response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se ha encontrado el perfil de la organización."
+        )
+
+    try:
+        organization_data: OrganizationUpdate = OrganizationUpdate(**json.loads(data))
+
+        if image is not None:
+            image_bytes = await image.read()
+            validate_image(image_bytes)
+
+    except (json.JSONDecodeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Formato de JSON no válido: {e}"
+        )
+
+    except (InvalidImageFormat, ImageTooLarge, NoImageFormatFound) as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+    except UnidentifiedImageError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="El archivo enviado no se reconoce como imagen."
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Los datos están incompletos o no cumplen el formato esperado: {e}"
+        )
+
+    organization_updated: dict[str, str | None] = update_organization_profile_service(
+        supabase=supabase,
+        id_user=current_user["sub"],
+        profile_data=organization_data.model_dump(),
+        image_profile=image_bytes
+    )
+
+    return organization_updated
 
 @router.get("/all-data")
 async def get_all_user_data(
