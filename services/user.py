@@ -92,28 +92,25 @@ def update_user_profile(
                         directamente desde la respuesta de la base de datos.
     """
 
+    old_photo_path: str | None = None
+
     if image is not None:
-        old_photo_path = None
 
         response_image_field = (
             supabase.table("users_profiles")
             .select("photo_url")
             .eq("id_user", id_user)
-            .single()
             .execute()
         )
         
-        if response_image_field.data and response_image_field.data.get("photo_url"):
-            old_photo_path = response_image_field.data["photo_url"]
+        if response_image_field.data:
+            old_photo_path = response_image_field.data[0].get("photo_url", None)
 
         upload_response = upload_image_to_supabase(
             id=id_user, image=image, bucket="avatars", path="public/users", supabase=supabase
         )
 
         data_to_update["photo_url"] = upload_response.path
-
-        if old_photo_path:
-            supabase.storage.from_("avatars").remove([old_photo_path])
 
     if can_clusterize(data_to_update):
         data_to_update = transform_bool_cluster_features_to_int(data_to_update)
@@ -130,6 +127,18 @@ def update_user_profile(
         .eq("id_user", id_user)
         .execute()
     )
+
+    if old_photo_path is not None:
+        supabase.storage.from_("avatars").remove([old_photo_path])
+
+    try:
+        response.data[0]["photo_url"] = supabase.storage.from_("avatars").create_signed_url(
+            path=response.data[0]["photo_url"],
+            expires_in=3600
+        )["signedURL"]
+
+    except StorageApiError:
+        response.data[0]["photo_url"] = None
 
     return response.data[0]
 

@@ -3,11 +3,11 @@ from supabase import Client, AuthApiError
 from supabase_auth import AuthResponse
 from utils.supabase import get_supabase_client, get_supabase_admin_client
 from utils.image_utils import validate_image
-from schemas.users import UserCreate, UserRead, UserCreated, UserProfileCreate
+from schemas.users import UserCreate, UserRead, UserCreated, UserProfileCreate, UserProfileUpadate
 from exceptions.image_exceptions import ImageTooLarge, InvalidImageFormat, NoImageFormatFound
 from PIL import UnidentifiedImageError
 from services import auth, account_services
-from services.user import create_user_db, update_user_profile, get_user_all_data
+from services.user import create_user_db, update_user_profile as update_user_profile_service, get_user_all_data
 from typing import Any
 import json
 from pydantic_core import PydanticCustomError
@@ -144,7 +144,7 @@ async def create_user_profile(
     supabase: Client = Depends(get_supabase_admin_client),
     current_user: dict[str, Any] = Depends(auth.get_current_active_user)
 ) -> dict[str, str]:
-    """Crea o actualiza el perfil de compatibilidad del usuario autenticado.
+    """Crea el perfil de compatibilidad del usuario autenticado.
 
     Este endpoint permite a un usuario normal registrado completar su
     perfil, que son utilizados por el sistema de recomendación de mascotas.
@@ -153,7 +153,7 @@ async def create_user_profile(
         profile_data (UserProfileCreate): Cuerpo de la petición con los datos del
                                         perfil a crear o actualizar.
         supabase (Client): Dependencia para obtener el cliente de Supabase.
-        current_user (dict): Dependencia que valida el JWT y devuelve los datos
+        current_user (dict[str,Any]): Dependencia que valida el JWT y devuelve los datos
                             del usuario autenticado.
 
     Raises:
@@ -166,7 +166,7 @@ async def create_user_profile(
     """
 
     try:
-        update_user_profile(supabase=supabase, id_user=current_user['sub'], data_to_update=profile_data.model_dump(exclude_unset=True))
+        update_user_profile_service(supabase=supabase, id_user=current_user['sub'], data_to_update=profile_data.model_dump(exclude_unset=True))
 
         return {"message": "Perfil de usuario creado"}
 
@@ -175,6 +175,80 @@ async def create_user_profile(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Los datos están incompletos o no cumplen el formato esperado: {e}"
         )
+
+@router.put("/profile", response_model=UserRead)
+async def update_user_profile(
+    data: str = Form(...),
+    image: UploadFile | None = File(None),
+    supabase: Client = Depends(get_supabase_admin_client),
+    current_user: dict[str, Any] = Depends(auth.get_current_active_user)
+) -> dict[str, Any]:
+    """Endpoint para editar la información del perfil del usuario.
+
+    Permite la actualización de perfil de un usuario normal. Valida que los datos recibidos
+    y la imagen estén en el formato corracto. Devuelve la información del perfil actualizada
+    al cliente.
+
+    Args:
+        data (str): String en formato JSON que contiene la información que se va a actualizar en la
+                    base de datos.
+        image (UploadFile|None): Imagen de perfil opcional.
+        supabase (Cliente): Cliente de Supabase con el que se realizarán las operaciones de actualización
+                            de la base de datos.
+        current_user (dict): Dependencia que valida el JWT y devuelve los datos
+                            del usuario autenticado.
+
+    Raises:
+        HTTPException (400): Si el campo `data` no tiene un formato JSON válido.
+        HTTPException (401): Si el token JWT no es válido o ha expirado.
+        HTTPException (422): Si los datos proporcionados no cumplen con el formato
+                            o las validaciones esperadas.
+
+    Returns:
+        dict[str,Any]: Los datos actualizados del perfil del usuario directos desde
+                        la base de datos que indican la confirmación de los cambios.
+    """
+
+    image_bytes: bytes | None = None
+
+    try:
+        if image is not None:
+            image_bytes = await image.read()
+
+        user_profile_new_data: UserProfileUpadate = UserProfileUpadate(**json.loads(data))
+
+    except (json.JSONDecodeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Formato de JSON no válido: {e}"
+        )
+
+    except (InvalidImageFormat, ImageTooLarge, NoImageFormatFound) as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+    except UnidentifiedImageError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="El archivo enviado no se reconoce como imagen."
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Los datos están incompletos o no cumplen el formato esperado: {e}"
+        )
+
+    user_profile_updated: dict[str, Any] = update_user_profile_service(
+        supabase=supabase,
+        id_user=current_user["sub"],
+        data_to_update=user_profile_new_data.model_dump(),
+        image=image_bytes
+    )
+
+    return user_profile_updated
 
 @router.get("/all-data")
 async def get_all_user_data(

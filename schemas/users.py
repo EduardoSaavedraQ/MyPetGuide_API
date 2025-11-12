@@ -130,8 +130,13 @@ class UserProfileCreate(SQLModel):
     activity_level: int | None = Field(default=None, ge=1, le=3, description="Nivel de activiad del usuario o el responsable directo de la mascota")
     has_kids: bool | None = Field(default=None, description="Indica si hay niños en la familia")
     has_neighbors: bool | None = Field(default=None, description="Indica si hay vecinos cerca")
-    available_time_per_day: int | None = Field(default=None, gt=0, le=24, description="Tiempo disponible al día para cuidar a la mascota (en horas, máximo 24)")
+    available_time_per_day: int | None = Field(default=None, ge=2, le=24, description="Tiempo disponible al día para cuidar a la mascota (en horas, máximo 24)")
     vet_access: bool | None = Field(default=None, description="Indica si se tiene acceso a un veterinario")
     has_other_pets: bool | None = Field(default=None, description="Indica si ya se tienen otras mascotas")
     experience_with_pets: int | None = Field(default=None, description="Tiempo experiencia cuidando mascotas")
     preferred_species: bool | None = Field(default=None, description="Preferencia por especie de mascota (True para perro, False para gato)")
+
+class UserProfileUpadate(UserProfileCreate):
+    first_name: str = Field(..., min_length=1, max_length=50, description="Nombre(s) del usuario")
+    last_name: str = Field(..., min_length=1, max_length=50, description="Apellido paterno del usuario")
+    slast_name: str | None = Field(default=None, min_length=1, max_length=50, description="Apellido materno del usuario (opcional)")
