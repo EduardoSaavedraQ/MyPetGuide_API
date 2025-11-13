@@ -121,13 +121,13 @@ def update_organization_profile(
         )
 
     try:
-        update_organization_profile["photo_url"] =  supabase.storage.from_("avatars").create_signed_url(
-            path=upload_response.path,
+        updated_organization_profile["photo_url"] =  supabase.storage.from_("avatars").create_signed_url(
+            path=updated_organization_profile["photo_url"],
             expires_in=3600
         )["signedUrl"]
 
     except StorageApiError:
-        update_organization_profile["photo_url"] = None
+        updated_organization_profile["photo_url"] = None
 
     return updated_organization_profile
 
@@ -164,7 +164,16 @@ def get_organization_all_data(supabase: Client, id_user: str) -> dict[str, Any]:
             detail="Los datos de la organización no fueron encontrados."
         )
 
-    organization_data: dict = organization_query_response.data[0]
+    organization_data: dict[str, int | str] = organization_query_response.data[0]
+
+    if organization_data["photo_url"] is not None:
+        try:
+            organization_data["photo_url"] = supabase.storage.from_("avatars").create_signed_url(
+                path=organization_data["photo_url"],
+                expires_in=3600
+            )
+        except StorageApiError:
+            organization_data["photo_url"] = None
 
     pet_query_response = (
         supabase.table("pets")

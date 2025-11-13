@@ -144,7 +144,14 @@ def update_pet_profile(
 
     updated_pet_profile: dict[str, Any] = response.data[0]
 
-    updated_pet_profile["photo_url"] =  supabase.storage.from_("avatars").create_signed_url(path=upload_response.path, expires_in=3600)["signedUrl"]
+    try:
+        updated_pet_profile["photo_url"] =  supabase.storage.from_("avatars").create_signed_url(
+            path=updated_pet_profile["photo_url"],
+            expires_in=3600
+        )["signedUrl"]
+
+    except StorageApiError:
+        update_pet_profile["photo_url"] = None
 
     return updated_pet_profile
 
