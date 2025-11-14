@@ -114,11 +114,10 @@ def update_organization_profile(
     updated_organization_profile: dict[str, str] = response.data[0]
 
     if old_photo_url is not None:
-        response = (
-            supabase.storage
-            .from_("avatars")
-            .remove([old_photo_url])
-        )
+        try:
+            supabase.storage.from_("avatars").remove([old_photo_url])            
+        except StorageApiError:
+            pass
 
     try:
         updated_organization_profile["photo_url"] =  supabase.storage.from_("avatars").create_signed_url(

@@ -197,7 +197,13 @@ def get_all_pets_in_adoption(supabase: Client, id_user: str, page: int | None = 
 
     for pet in response.data:
         if pet["photo_url"] is not None:
-            pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=60)
+            try:
+                pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(
+                    path=pet["photo_url"],
+                    expires_in=3600
+                )
+            except StorageApiError:
+                pet["photo_url"] = None
 
     return response.data
 
@@ -288,7 +294,13 @@ def get_recommended_pets(supabase: Client, id_user: str, page: int | None = None
 
     for pet in response.data:
         if pet["photo_url"] is not None:
-            pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(path=pet["photo_url"], expires_in=3600)
+            try:
+                pet["photo_url"] = supabase.storage.from_("avatars").create_signed_url(
+                    path=pet["photo_url"],
+                    expires_in=3600
+                )
+            except StorageApiError:
+                pet["photo_url"] = None
 
     return results
 

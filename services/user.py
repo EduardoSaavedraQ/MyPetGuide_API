@@ -129,7 +129,10 @@ def update_user_profile(
     )
 
     if old_photo_path is not None:
-        supabase.storage.from_("avatars").remove([old_photo_path])
+        try:
+            supabase.storage.from_("avatars").remove([old_photo_path])
+        except StorageApiError:
+            pass
 
     try:
         response.data[0]["photo_url"] = supabase.storage.from_("avatars").create_signed_url(
